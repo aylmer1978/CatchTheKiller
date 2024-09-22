@@ -1,0 +1,1 @@
+- Añadir un subnivel a los elementos. Por ejemplo dentro de Metro: "Estacion de Hillyburg", "Estacion de Robbs", "Estacion abandonada", que sea siempre aleatorio y le de mayor profundidad al juego.
