@@ -2,28 +2,18 @@ import random
 
 class Asesino:
     def __init__(self, victimas, armas, lugares, otros):
-        # Seleccionamos 3 rasgos aleatorios y dejamos 1 como irrelevante (None)
-        rasgos = {
-            "Víctima": random.choice(victimas),
-            "Arma": random.choice(armas),
-            "Lugar": random.choice(lugares),
-            "Otros": random.choice(otros)
-        }
+        # Asignar valores aleatorios de los arrays para los rasgos del asesino
+        self.victima = random.choice(victimas)
+        self.arma = random.choice(armas)
+        self.lugar = random.choice(lugares)
+        self.otro = random.choice(otros)
 
-        # Hacer que uno de los rasgos sea irrelevante (None)
-        irrelevante = random.choice(["Víctima", "Arma", "Lugar", "Otros"])
-        rasgos[irrelevante] = None
-
-        # Asignamos los rasgos del asesino
-        self.victima = rasgos["Víctima"]
-        self.arma = rasgos["Arma"]
-        self.lugar = rasgos["Lugar"]
-        self.otro = rasgos["Otros"]
-
-    def cometer_crimen(self):
+    def mostrar_rasgos(self):
+        """ Muestra los rasgos distintivos del asesino """
         return {
             "Víctima": self.victima,
             "Arma": self.arma,
             "Lugar": self.lugar,
             "Otros": self.otro
         }
+
