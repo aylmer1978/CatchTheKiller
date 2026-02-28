@@ -1,13 +1,17 @@
 import random
+import json
 from asesino import Asesino
 from generador_crimenes import generar_crimenes_asesino, generar_crimenes_no_asesino
 from rutina_juego import mostrar_crimenes, seleccionar_crimen_y_investigar
 
-# Listas de opciones compartidas
-victimas = ["Mujer 50s", "Hombre 30s", "Hombre 40s", "Homosexual", "Latino"]
-armas = ["Cuchillo", "Pistola", "Cuerda", "Bisturí", "Manos", "Martillo"]
-lugares = ["Ciudad", "Campo", "Bosque", "Metro", "Casa", "Callejón"]
-otros = ["Violación", "Tortura", "Robo", "Amputación", "Marca especial"]
+# Cargar listas de opciones desde JSON
+with open('elementos.json', 'r', encoding='utf-8') as f:
+    elementos = json.load(f)
+
+victimas = elementos["victimas"]
+armas = elementos["armas"]
+lugares = elementos["lugares"]
+otros = elementos["otros"]
 
 def mostrar_resultado_final(todos_los_crimenes):
     """ Muestra el resultado final al terminar las tres fases. """

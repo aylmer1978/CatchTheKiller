@@ -1,12 +1,16 @@
 import random
+import json
 from crimen import Crimen
 from asesino import Asesino
 
-# Listas de opciones compartidas
-victimas = ["Mujer 50s", "Hombre 30s", "Hombre 40s", "Homosexual", "Latino"]
-armas = ["Cuchillo", "Pistola", "Cuerda", "Bisturí", "Manos", "Martillo"]
-lugares = ["Ciudad", "Campo", "Bosque", "Metro", "Casa", "Callejón"]
-otros = ["Violación", "Tortura", "Robo", "Amputación", "Marca especial"]
+# Cargar listas de opciones desde JSON
+with open('elementos.json', 'r', encoding='utf-8') as f:
+    elementos = json.load(f)
+
+victimas = elementos["victimas"]
+armas = elementos["armas"]
+lugares = elementos["lugares"]
+otros = elementos["otros"]
 
 def generar_crimenes_asesino(asesino):
     crimenes = []
@@ -58,7 +62,7 @@ def elegir_elemento_irrelevante(tipo, lista_elementos, contador_elementos):
 # Ejemplo de integración en el juego
 
 def main():
-    asesino = Asesino()  # Creamos el asesino con tres rasgos aleatorios y un elemento irrelevante
+    asesino = Asesino(victimas, armas, lugares, otros)  # Creamos el asesino con tres rasgos aleatorios y un elemento irrelevante
     crimenes = generar_crimenes_asesino(asesino)  # Generamos los tres crímenes del asesino
 
     # Mostrar los crímenes del asesino en el juego
