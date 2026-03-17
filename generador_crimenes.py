@@ -1,51 +1,67 @@
 from crimen import Crimen
 import random
 
-def generar_crimenes_asesino(asesino, victimas, armas, lugares, otros):
-    """ Genera los crímenes del asesino, asegurando que solo la combinación del asesino se repita tres veces. """
-    crimenes = []
-    combinacion_asesino = (
-        random.choice(victimas),
-        random.choice(armas),
-        random.choice(lugares),
-        random.choice(otros)
-    )
+def _calcular_diferencias(c1, c2):
+    return sum(1 for a, b in zip(c1, c2) if a != b)
 
-    # Generar los crímenes con la combinación del asesino 3 veces
-    for _ in range(3):
-        crimen = Crimen(*combinacion_asesino)
-        crimen.marcado_asesino = True  # Marcar el crimen como uno del asesino
-        crimenes.append(crimen)
+def generar_crimenes_asesino(asesino, victimas, armas, lugares, otros):
+    """ Genera los crímenes del asesino, asegurando que compartan 2 rasgos (su firma) y difieran en el resto """
+    crimenes = []
+    
+    # Seleccionamos aleatoriamente 2 atributos que formarán la "firma" del asesino
+    atributos = ["victima", "arma", "lugar", "otro"]
+    firma = random.sample(atributos, 2)
+    
+    combinaciones_generadas = []
+    
+    while len(combinaciones_generadas) < 3:
+        c_tuple = (
+            asesino.victima if "victima" in firma else random.choice(victimas),
+            asesino.arma if "arma" in firma else random.choice(armas),
+            asesino.lugar if "lugar" in firma else random.choice(lugares),
+            asesino.otro if "otro" in firma else random.choice(otros)
+        )
+        
+        # Debe haber al menos 2 diferencias con otros crímenes ya generados para el asesino
+        valido = True
+        for ya_generado in combinaciones_generadas:
+            if _calcular_diferencias(c_tuple, ya_generado) < 2:
+                valido = False
+                break
+                
+        if valido:
+            combinaciones_generadas.append(c_tuple)
+            crimen = Crimen(*c_tuple)
+            crimen.marcado_asesino = True
+            crimenes.append(crimen)
 
     return crimenes
 
 
 def generar_crimenes_no_asesino(asesino, victimas, armas, lugares, otros, crimenes_existentes, num_crimenes_no_asesino):
-    """ Genera crímenes adicionales, asegurando que la combinación del asesino no se repita. """
+    """ Genera crímenes adicionales, asegurando que tengan al menos 2 diferencias con cualquier otro crimen """
     crimenes = []
-    contador_combinaciones = {}
-    combinacion_asesino = (asesino.victima, asesino.arma, asesino.lugar, asesino.otro)
+    todas_combinaciones = [(c.victima, c.arma, c.lugar, c.otro) for c in crimenes_existentes]
 
-    # Añadir los crímenes ya existentes al contador
-    for crimen in crimenes_existentes:
-        combinacion = (crimen.victima, crimen.arma, crimen.lugar, crimen.otro)
-        contador_combinaciones[combinacion] = contador_combinaciones.get(combinacion, 0) + 1
+    while len(crimenes) < num_crimenes_no_asesino:
+        c_tuple = (
+            random.choice(victimas),
+            random.choice(armas),
+            random.choice(lugares),
+            random.choice(otros)
+        )
 
-    # Generar crímenes adicionales que no repitan la combinación del asesino
-    for _ in range(num_crimenes_no_asesino):
-        while True:
-            victima = random.choice(victimas)
-            arma = random.choice(armas)
-            lugar = random.choice(lugares)
-            otro = random.choice(otros)
-
-            combinacion = (victima, arma, lugar, otro)
-
-            # Asegurarse de que la combinación del asesino no se repita
-            if combinacion != combinacion_asesino:
-                crimen = Crimen(victima, arma, lugar, otro)
-                crimen.marcado_asesino = False
-                crimenes.append(crimen)
+        # Debe haber al menos 2 diferencias con *CUALQUIER* otro crimen generado
+        valido = True
+        for ya_generado in todas_combinaciones:
+            if _calcular_diferencias(c_tuple, ya_generado) < 2:
+                valido = False
                 break
+                
+        if valido:
+            todas_combinaciones.append(c_tuple)
+            crimen = Crimen(*c_tuple)
+            crimen.marcado_asesino = False
+            crimenes.append(crimen)
 
     return crimenes

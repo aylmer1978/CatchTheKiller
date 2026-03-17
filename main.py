@@ -41,6 +41,29 @@ def main():
     todos_los_crimenes = crimenes_asesino + crimenes_no_asesino
     random.shuffle(todos_los_crimenes)  # Orden aleatorio
 
+    print("="*60)
+    print("                CATCH THE KILLER 🔪🔍")
+    print("="*60)
+    print("¡Bienvenido/a, Inspector/a!")
+    print("\nOBJETIVO:")
+    print("Se han reportado múltiples crímenes en el área. Tu meta es")
+    print("identificar al **Asesino en Serie**, que es responsable de ")
+    print("exactamente 3 de estos homicidios.")
+    print("\nREGLAS DE IDENTIFICACIÓN:")
+    print("1. El Asesino tiene una *\"Firma\"* única:")
+    print("   Sus 3 crímenes comparten EXACTAMENTE 2 RASGOS idénticos")
+    print("   (ej. misma arma y mismo lugar), pero varían en el resto.")
+    print("2. El resto de crímenes son ruido: No hay 2 crímenes iguales.")
+    print("   Todos los crímenes en la lista difieren en al menos 2 atributos.")
+    print("\nMECÁNICA:")
+    print("Cada crimen tiene una pista Oculta ('XXXXXX'). Al investigar,")
+    print("debes desencriptar el archivo forense (Minijuego MASTERMIND).")
+    print("- Adivina la clave posicional de 4 dígitos (del 1 al 6, sin repe).")
+    print("- 'O' (acierto exacto), '-' (número correcto, mal posicionado), 'X' (fallo).")
+    print("- Si aciertas, la pista se revela. Si fallas tus 6 intentos, se BLOQUEA.")
+    print("="*60)
+    input("\nPresiona ENTER para comenzar el análisis forense...")
+
     # Rutina del juego: 3 fases
     for fase in range(1, 4):
         mostrar_crimenes(todos_los_crimenes, fase)

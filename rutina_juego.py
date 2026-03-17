@@ -42,7 +42,11 @@ def mostrar_crimenes(todos_los_crimenes, fase):
 
     for i, crimen in enumerate(crimenes_a_mostrar):
         # Verificar si el crimen ya ha sido investigado
-        if hasattr(crimen, 'elemento_oculto') and crimen.elemento_oculto == "revelado":
+        if getattr(crimen, 'bloqueado', False):
+            # Muestra el crimen pero con la pista como [BLOQUEADO] permanente
+            detalles = crimen.mostrar_detalles()
+            detalles_ocultos = {key: ("[BLOQUEADO]" if key == crimen.elemento_oculto else value) for key, value in detalles.items()}
+        elif hasattr(crimen, 'elemento_oculto') and crimen.elemento_oculto == "revelado":
             detalles_ocultos = crimen.mostrar_detalles()
         else:
             detalles_ocultos = ocultar_elemento(crimen)
@@ -66,9 +70,28 @@ def seleccionar_crimen_y_investigar(todos_los_crimenes, fase):
             eleccion = int(input("Introduce el número del crimen que deseas investigar: ")) - 1
             if 0 <= eleccion < len(crimenes_a_mostrar):
                 crimen_investigado = crimenes_a_mostrar[eleccion]
-                detalles_revelados = investigar_crimen(crimen_investigado)
-                crimen_investigado.elemento_oculto = "revelado"  # Marcar el crimen como investigado
-                print(f"\nCrimen {eleccion + 1} investigado: {detalles_revelados}")
+                
+                if getattr(crimen_investigado, 'bloqueado', False):
+                    print("Esta pista fue corrupta y está bloqueada. Elige otro crimen.")
+                    continue
+                    
+                if getattr(crimen_investigado, 'elemento_oculto', None) == "revelado":
+                    print("Ya tienes esta pista al descubierto. Elige otro crimen para aprovechar tu turno.")
+                    continue
+
+                print(f"\nIniciando análisis forense del Crimen {eleccion + 1}...")
+                from minijuegos import Mastermind
+                minijuego = Mastermind()
+                exito = minijuego.jugar()
+                
+                if exito:
+                    detalles_revelados = investigar_crimen(crimen_investigado)
+                    crimen_investigado.elemento_oculto = "revelado"  # Marcar el crimen como investigado
+                    print(f"\nCrimen {eleccion + 1} investigado con éxito: {detalles_revelados}")
+                else:
+                    crimen_investigado.bloqueado = True
+                    print(f"\nHas destruido la evidencia del Crimen {eleccion + 1}. Pista bloqueada para siempre.")
+
                 break
             else:
                 print("Por favor, introduce un número válido.")
