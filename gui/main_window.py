@@ -43,7 +43,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.elementos = elementos
         self.setWindowTitle("CATCH THE KILLER")
-        self.setMinimumSize(1200, 780)
+        self.setMinimumSize(1280, 820)
         self.setStyleSheet(STYLESHEET)
 
         self._stack = QStackedWidget()
@@ -110,8 +110,10 @@ class PantallaJuego(QWidget):
         sep.setFixedHeight(1)
         layout.addWidget(sep)
 
-        # ── Cuerpo central ────────────────────────────────
-        cuerpo = QHBoxLayout()
+        # ── Cuerpo central (con scroll horizontal de seguridad) ──────────
+        from PySide6.QtWidgets import QScrollArea
+        cuerpo_widget = QWidget()
+        cuerpo = QHBoxLayout(cuerpo_widget)
         cuerpo.setSpacing(12)
         cuerpo.setContentsMargins(0, 8, 0, 0)
 
@@ -142,13 +144,19 @@ class PantallaJuego(QWidget):
         self.panel_arch.accion_recuperar.connect(self._on_recuperar)
         cuerpo.addWidget(self.panel_arch)
 
-        layout.addLayout(cuerpo, stretch=1)
+        # Scroll horizontal de seguridad
+        scroll_cuerpo = QScrollArea()
+        scroll_cuerpo.setWidget(cuerpo_widget)
+        scroll_cuerpo.setWidgetResizable(True)
+        scroll_cuerpo.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_cuerpo.setStyleSheet("border: none; background: transparent;")
+        layout.addWidget(scroll_cuerpo, stretch=1)
 
         # ── Panel de mano (inferior) ──────────────────────
         self.panel_mano = PanelMano(self.partida)
         self.panel_mano.carta_jugada.connect(self._on_carta_jugada)
         self.panel_mano.carta_descartada.connect(self._on_carta_descartada)
-        self.panel_mano.turno_pasado.connect(self._on_pasar_turno)
+        self.panel_mano.dia_finalizado.connect(self._on_finalizar_dia)
         layout.addWidget(self.panel_mano)
 
     # ── Barra superior ────────────────────────────────────────────────── #
@@ -215,11 +223,11 @@ class PantallaJuego(QWidget):
         return barra
 
     def _actualizar_barra(self):
-        prox    = self.partida.proximas_acciones_para_nuevo()
+        prox    = self.partida.proximos_dias_para_nuevo()
         hay_mas = self.partida.hay_mas_crimenes()
         self.lbl_acciones.setText(
-            f"ACCIONES: {self.partida.acciones}"
-            + (f"  ·  PRÓXIMO EN: {prox}" if hay_mas else "")
+            f"DÍA {self.partida.dias}"
+            + (f"  ·  PRÓXIMO CRIMEN EN: {prox}d" if hay_mas else "")
         )
         self.lbl_intentos.setText(
             f"INTENTOS: {self.partida.intentos}/{self.partida.intentos_max}"
@@ -276,11 +284,85 @@ class PantallaJuego(QWidget):
             return
         self.panel_mano.actualizar()
 
-    def _on_pasar_turno(self):
-        nuevo = self.partida.pasar_turno()
+    def _on_finalizar_dia(self):
+        resultado = self.partida.finalizar_dia()
+        if not resultado:
+            return
+
+        # Diálogo narrativo del paso del día
+        self._dialogo_dia(resultado)
         self._actualizar_todo()
-        if nuevo:
-            self._notificar_nuevo_crimen()
+
+    def _dialogo_dia(self, resultado: dict):
+        """Muestra el diálogo de fin de día con frase narrativa."""
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"DÍA {resultado['dia_nuevo'] - 1} — FIN DE JORNADA")
+        dlg.setFixedWidth(420)
+        dlg.setStyleSheet(f"""
+            QDialog {{ background: {GRIS_OSCURO}; font-family: {MONO}; }}
+            QLabel  {{ border: none; }}
+        """)
+
+        lay = QVBoxLayout(dlg)
+        lay.setContentsMargins(28, 24, 28, 24)
+        lay.setSpacing(14)
+
+        # Número de día
+        lbl_dia = QLabel(f"— FIN DEL DÍA {resultado['dia_nuevo'] - 1} —")
+        lbl_dia.setAlignment(Qt.AlignCenter)
+        lbl_dia.setStyleSheet(f"color: {GRIS_TEXTO}; font-size: 9px; letter-spacing: 4px;")
+        lay.addWidget(lbl_dia)
+
+        # Frase narrativa
+        lbl_frase = QLabel(f'"{resultado["frase"]}"')
+        lbl_frase.setWordWrap(True)
+        lbl_frase.setAlignment(Qt.AlignCenter)
+        lbl_frase.setStyleSheet(f"""
+            color: {AMBAR};
+            font-size: 12px;
+            font-style: italic;
+            line-height: 1.6;
+        """)
+        lay.addWidget(lbl_frase)
+
+        # Avisos de crímenes nuevos
+        avisos = []
+        if resultado.get("nuevo_crimen"):
+            avisos.append("⚠  Se ha reportado un nuevo homicidio en la ciudad.")
+        if resultado.get("penalizacion"):
+            avisos.append("⚠  El mazo se ha agotado. Otro crimen ha aparecido.")
+
+        for aviso in avisos:
+            lbl_av = QLabel(aviso)
+            lbl_av.setWordWrap(True)
+            lbl_av.setStyleSheet(f"color: {ROJO}; font-size: 10px;")
+            lay.addWidget(lbl_av)
+
+        # Nuevo día
+        sep = QFrame()
+        sep.setStyleSheet(f"background: {GRIS_BORDE}; max-height: 1px;")
+        lay.addWidget(sep)
+
+        lbl_nuevo = QLabel(f"DÍA {resultado['dia_nuevo']} — SE REPONEN LAS CARTAS")
+        lbl_nuevo.setAlignment(Qt.AlignCenter)
+        lbl_nuevo.setStyleSheet(f"color: {VERDE}; font-size: 9px; letter-spacing: 3px;")
+        lay.addWidget(lbl_nuevo)
+
+        btn = QPushButton("CONTINUAR")
+        btn.setFixedHeight(34)
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {AMBAR_OSCURO}; color: {BLANCO};
+                border: 1px solid {AMBAR}; border-radius: 2px;
+                font-size: 10px; letter-spacing: 3px; font-family: {MONO};
+            }}
+            QPushButton:hover {{ background: {AMBAR}; color: {NEGRO}; }}
+        """)
+        btn.clicked.connect(dlg.accept)
+        lay.addWidget(btn)
+
+        dlg.exec()
 
     # ── Acciones de expediente ────────────────────────────────────────── #
 

@@ -1,14 +1,11 @@
 """
 partida.py — Estado completo de una partida en curso.
 
-Sistema de cartas:
-  - El jugador tiene 3 cartas en mano en todo momento.
-  - Cada carta jugada es una acción. Al jugarla roba una nueva.
-  - Descarte gratuito una vez por turno (roba carta nueva igualmente).
-  - Pasar turno: acción válida si no hay cartas jugables.
-  - Cada 3 acciones → nuevo crimen aparece en el mapa.
-  - Al regenerar el mazo → penalización: crimen nuevo inmediato.
-  - Recuperar archivado cuenta como acción (se juega como si fuera carta).
+Modelo de día:
+  - Dentro de un día: 0 o 1 carta jugada + 0 o 1 descarte gratuito.
+  - FINALIZAR DÍA: avanza el tiempo, repone cartas hasta 3.
+  - Cada 3 días → nuevo crimen aparece al inicio del nuevo día.
+  - Al regenerar el mazo al reponer → penalización: crimen nuevo extra.
 """
 
 import random
@@ -33,12 +30,28 @@ INTENTOS_POR_DIFICULTAD = {
     Dificultad.DIFICIL: 1,
 }
 
-CRIMENES_INICIALES  = 5
-ACCIONES_POR_CRIMEN = 3
+CRIMENES_INICIALES = 5
+DIAS_POR_CRIMEN   = 3      # cada N días completos aparece un crimen nuevo
 MIN_ATTRS_INICIALES = 3
 MAX_ATTRS_INICIALES = 5
 RANGO_ASESINO = (4, 7)
 RANGO_SENUELO = (6, 10)
+
+# Frases narrativas para el paso del día
+FRASES_DIA = [
+    "La ciudad duerme. Los archivos se acumulan sobre tu escritorio.",
+    "Otro día termina sin respuestas. La lluvia golpea la ventana.",
+    "Las luces de la comisaría se apagan una a una. Mañana seguirás.",
+    "El café se ha enfriado hace horas. Cierras los expedientes por hoy.",
+    "Las calles están vacías. En algún lugar ahí fuera, él también espera.",
+    "Fin de jornada. Los datos siguen sin encajar del todo.",
+    "Apagas el flexo. Las fotos del caso te siguen mirando desde el corcho.",
+    "Otra noche sin detención. El reloj marca las 2 de la madrugada.",
+    "Te frotas los ojos. El patrón está ahí, solo tienes que verlo.",
+    "La ciudad nunca duerme del todo. Tú tampoco.",
+    "Guardas los informes. Mañana los verás con ojos frescos.",
+    "El turno ha terminado. El caso, no.",
+]
 
 
 class ResultadoAcusacion(Enum):
@@ -88,7 +101,7 @@ class Partida:
         self._posiciones: dict[int, tuple[int, int]] = self._asignar_posiciones()
         self._siguiente_idx: int = CRIMENES_INICIALES
 
-        self.acciones: int = 0
+        self.dias:    int = 1       # día actual (empieza en 1)
         self.victimas: int = 0
         self.historial_victimas: list[dict] = []
 
@@ -140,8 +153,9 @@ class Partida:
     def hay_mas_crimenes(self) -> bool:
         return self._siguiente_idx < len(self._pool)
 
-    def proximas_acciones_para_nuevo(self) -> int:
-        return ACCIONES_POR_CRIMEN - (self.acciones % ACCIONES_POR_CRIMEN)
+    def proximos_dias_para_nuevo(self) -> int:
+        """Días que faltan para que aparezca el próximo crimen."""
+        return DIAS_POR_CRIMEN - ((self.dias - 1) % DIAS_POR_CRIMEN)
 
     def indices_asesino_visibles(self) -> set[int]:
         return {i for i, c in enumerate(self._pool)
@@ -175,52 +189,38 @@ class Partida:
 
     # ── Acciones de juego ─────────────────────────────────────────────── #
 
-    def _registrar_accion(self) -> Crimen | None:
-        """Incrementa acciones y aparece nuevo crimen si toca."""
-        self.acciones += 1
-        if self.acciones % ACCIONES_POR_CRIMEN == 0 and self.hay_mas_crimenes():
-            nuevo_idx = self._siguiente_idx
-            self._hacer_visible(nuevo_idx)
-            self._siguiente_idx += 1
-            return self._pool[nuevo_idx]
-        return None
-
     def _aplicar_carta(self, carta: Carta, idx_crimen: int) -> list[str]:
-        """
-        Aplica el efecto de la carta sobre el crimen.
-        Devuelve lista de atributos revelados.
-        """
+        """Aplica el efecto de la carta. Devuelve atributos revelados."""
         crimen = self._pool[idx_crimen]
         a_revelar: list[str] = []
 
         if carta.tipo == TipoCarta.INVESTIGAR_EXPEDIENTE:
             ocultos = crimen.atributos_ocultos()
-            n = random.randint(
-                MIN_ATTRS_INICIALES,
-                min(MAX_ATTRS_INICIALES, len(ocultos))
-            )
+            n = random.randint(MIN_ATTRS_INICIALES,
+                               min(MAX_ATTRS_INICIALES, len(ocultos)))
             a_revelar = random.sample(ocultos, min(n, len(ocultos)))
-
         elif carta.tipo == TipoCarta.INVESTIGAR_CASO:
             a_revelar = crimen.atributos_ocultos()
-
         elif carta.es_atributo_especifico():
             if carta.atributo not in crimen.campos_revelados:
                 a_revelar = [carta.atributo]
 
         for a in a_revelar:
             crimen.revelar(a)
-
         return a_revelar
 
     def jugar_carta(self, idx_carta: int, idx_crimen: int) -> ResultadoCarta:
         """
         Juega la carta idx_carta sobre el crimen idx_crimen.
-        Cuenta como una acción. Roba carta nueva automáticamente.
+        La carta se consume. NO se roba nueva hasta finalizar el día.
+        Solo se puede jugar una carta por día.
         """
         if self.resuelta:
             return ResultadoCarta(False, self.mazo.mano[idx_carta], [],
                                   motivo_fallo="La partida ya está resuelta.")
+        if not self.mazo.puede_jugar():
+            return ResultadoCarta(False, self.mazo.mano[idx_carta], [],
+                                  motivo_fallo="Ya jugaste una carta hoy.")
 
         usable, motivo = self.carta_usable_en(idx_carta, idx_crimen)
         if not usable:
@@ -229,11 +229,54 @@ class Partida:
 
         carta = self.mazo.mano[idx_carta]
         atributos = self._aplicar_carta(carta, idx_crimen)
+        self.mazo.jugar(idx_carta)
 
-        # Jugar la carta en el mazo (va a descarte, roba nueva)
-        _, regenero = self.mazo.jugar(idx_carta)
+        return ResultadoCarta(exito=True, carta=carta, atributos=atributos)
 
-        # Penalización por regeneración del mazo
+    def descartar_carta(self, idx_carta: int) -> tuple[bool, Carta | None, str]:
+        """Descarte gratuito (una vez por día). No roba hasta finalizar el día."""
+        if self.resuelta:
+            return False, None, "La partida ya está resuelta."
+        if not self.mazo.puede_descartar():
+            return False, None, "Ya descartaste una carta hoy."
+        try:
+            carta = self.mazo.descartar(idx_carta)
+            return True, carta, ""
+        except (ValueError, IndexError) as e:
+            return False, None, str(e)
+
+    def finalizar_dia(self) -> dict:
+        """
+        Finaliza el día:
+          1. Avanza el contador de días.
+          2. Si toca (cada DIAS_POR_CRIMEN), hace aparecer un crimen nuevo.
+          3. Repone cartas hasta 3 robando del mazo.
+          4. Si el mazo se regenera al reponer → penalización: crimen extra.
+
+        Devuelve:
+          frase        — texto narrativo del paso del día
+          dia_nuevo    — número del nuevo día
+          nuevo_crimen — crimen que apareció por ciclo de días (o None)
+          penalizacion — crimen extra por regeneración del mazo (o None)
+          regenero_mazo — bool
+        """
+        if self.resuelta:
+            return {}
+
+        self.dias += 1
+
+        # ¿Toca nuevo crimen por ciclo de días?
+        nuevo_por_ciclo: Crimen | None = None
+        if (self.dias - 1) % DIAS_POR_CRIMEN == 0 and self.hay_mas_crimenes():
+            nuevo_idx = self._siguiente_idx
+            self._hacer_visible(nuevo_idx)
+            self._siguiente_idx += 1
+            nuevo_por_ciclo = self._pool[nuevo_idx]
+
+        # Reponer cartas (puede regenerar el mazo)
+        _, regenero = self.mazo.finalizar_dia()
+
+        # ¿Penalización por regeneración del mazo?
         nuevo_por_regen: Crimen | None = None
         if regenero and self.hay_mas_crimenes():
             nuevo_idx = self._siguiente_idx
@@ -241,45 +284,13 @@ class Partida:
             self._siguiente_idx += 1
             nuevo_por_regen = self._pool[nuevo_idx]
 
-        # Registrar acción (puede disparar otro crimen nuevo)
-        nuevo_por_accion = self._registrar_accion()
-
-        # Si ambos mecanismos disparan un crimen, el de penalización tiene prioridad
-        nuevo = nuevo_por_regen or nuevo_por_accion
-
-        return ResultadoCarta(
-            exito=True,
-            carta=carta,
-            atributos=atributos,
-            nuevo_crimen=nuevo,
-            regenero_mazo=regenero,
-        )
-
-    def descartar_carta(self, idx_carta: int) -> tuple[bool, Carta | None, str]:
-        """
-        Descarte gratuito (una vez por turno).
-        Devuelve (exito, carta_descartada, motivo_fallo).
-        """
-        if self.resuelta:
-            return False, None, "La partida ya está resuelta."
-        if not self.mazo.puede_descartar():
-            return False, None, "Ya descartaste una carta este turno."
-
-        try:
-            carta = self.mazo.descartar(idx_carta)
-            return True, carta, ""
-        except (ValueError, IndexError) as e:
-            return False, None, str(e)
-
-    def pasar_turno(self) -> Crimen | None:
-        """
-        Pasa el turno sin jugar carta. Cuenta como acción.
-        Devuelve nuevo crimen si apareció.
-        """
-        if self.resuelta:
-            return None
-        self.mazo.pasar_turno()
-        return self._registrar_accion()
+        return {
+            "frase":         random.choice(FRASES_DIA),
+            "dia_nuevo":     self.dias,
+            "nuevo_crimen":  nuevo_por_ciclo,
+            "penalizacion":  nuevo_por_regen,
+            "regenero_mazo": regenero,
+        }
 
     def archivar(self, idx: int) -> bool:
         """Descarta un crimen al panel de archivados. Sin coste de acción."""
@@ -358,20 +369,20 @@ class Partida:
 
     def dossier(self) -> dict:
         return {
-            "nombre_prensa":      self.asesino.nombre_prensa(),
-            "firma":              self.asesino.resumen_firma(),
-            "atributos_firma":    self.asesino.atributos_firma,
-            "dificultad":         self.dificultad.value,
-            "victoria":           self.victoria,
-            "total_victimas":     self.victimas,
-            "historial_victimas": self.historial_victimas,
-            "intentos_usados":    self.intentos_max - self.intentos,
-            "intentos_max":       self.intentos_max,
-            "acciones_totales":   self.acciones,
-            "cartas_jugadas":     self.mazo.cartas_en_descarte(),
+            "nombre_prensa":       self.asesino.nombre_prensa(),
+            "firma":               self.asesino.resumen_firma(),
+            "atributos_firma":     self.asesino.atributos_firma,
+            "dificultad":          self.dificultad.value,
+            "victoria":            self.victoria,
+            "total_victimas":      self.victimas,
+            "historial_victimas":  self.historial_victimas,
+            "intentos_usados":     self.intentos_max - self.intentos,
+            "intentos_max":        self.intentos_max,
+            "dias_totales":        self.dias,
+            "cartas_jugadas":      self.mazo.cartas_en_descarte(),
             "regeneraciones_mazo": self.mazo.regeneraciones,
-            "crimenes_vistos":    len([c for c in self._pool if c.visible_en_mapa]),
-            "crimenes_pool":      len(self._pool),
+            "crimenes_vistos":     len([c for c in self._pool if c.visible_en_mapa]),
+            "crimenes_pool":       len(self._pool),
         }
 
     # ── Debug ─────────────────────────────────────────────────────────── #
@@ -383,7 +394,7 @@ class Partida:
               f"  archivados:{len(self.crimenes_archivados())}")
         print(f"  Asesino: {self.asesino.nombre_prensa()!r}")
         print(f"  Firma: {self.asesino.resumen_firma()}")
-        print(f"  Acciones:{self.acciones}  Víctimas:{self.victimas}"
+        print(f"  Día:{self.dias}  Víctimas:{self.victimas}"
               f"  Intentos:{self.intentos}/{self.intentos_max}")
         print(f"  {self.mazo}")
         print(f"{'='*65}")

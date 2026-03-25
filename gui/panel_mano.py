@@ -193,7 +193,7 @@ class PanelMano(QWidget):
     """
     carta_jugada     = Signal(int)
     carta_descartada = Signal(int)
-    turno_pasado     = Signal()
+    dia_finalizado   = Signal()
 
     def __init__(self, partida: Partida, parent=None):
         super().__init__(parent)
@@ -250,7 +250,7 @@ class PanelMano(QWidget):
         self._contenedor_cartas.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         layout_outer.addLayout(self._contenedor_cartas, stretch=1)
 
-        # ── Instrucción + pasar turno ─────────────────────
+        # ── Instrucción + finalizar día ───────────────────
         col_accion = QVBoxLayout()
         col_accion.setAlignment(Qt.AlignVCenter)
         col_accion.setSpacing(8)
@@ -264,23 +264,36 @@ class PanelMano(QWidget):
         """)
         col_accion.addWidget(self.lbl_instruccion)
 
-        self.btn_pasar = QPushButton("PASAR TURNO")
-        self.btn_pasar.setFixedSize(110, 28)
-        self.btn_pasar.setToolTip("Pasar turno si ninguna carta es jugable")
-        self.btn_pasar.setStyleSheet(f"""
+        self.lbl_estado_dia = QLabel()
+        self.lbl_estado_dia.setStyleSheet(f"""
+            color: {GRIS_BORDE};
+            font-size: 8px;
+            letter-spacing: 1px;
+            border: none;
+        """)
+        col_accion.addWidget(self.lbl_estado_dia)
+
+        col_accion.addSpacing(4)
+
+        self.btn_finalizar = QPushButton("▶  FINALIZAR DÍA")
+        self.btn_finalizar.setFixedSize(148, 36)
+        self.btn_finalizar.setToolTip("Terminar el día y reponer cartas")
+        self.btn_finalizar.setStyleSheet(f"""
             QPushButton {{
-                background: transparent;
-                color: {GRIS_TEXTO};
-                border: 1px solid {GRIS_BORDE};
+                background: {AMBAR_OSCURO};
+                color: {BLANCO};
+                border: 1px solid {AMBAR};
                 border-radius: 2px;
-                font-size: 8px;
-                letter-spacing: 1px;
+                font-size: 10px;
+                letter-spacing: 2px;
                 font-family: {MONO};
             }}
-            QPushButton:hover {{ color: {BLANCO}; border-color: {GRIS_MEDIO}; }}
+            QPushButton:hover {{ background: {AMBAR}; color: {NEGRO}; }}
+            QPushButton:disabled {{ background: {GRIS_OSCURO}; color: {GRIS_BORDE};
+                                    border-color: {GRIS_BORDE}; }}
         """)
-        self.btn_pasar.clicked.connect(self._on_pasar)
-        col_accion.addWidget(self.btn_pasar)
+        self.btn_finalizar.clicked.connect(self._on_finalizar)
+        col_accion.addWidget(self.btn_finalizar)
 
         layout_outer.addLayout(col_accion)
 
@@ -325,11 +338,21 @@ class PanelMano(QWidget):
             if hay_jugable:
                 self.lbl_instruccion.setText("Elige una carta\npara jugar sobre\nel expediente.")
             else:
-                self.lbl_instruccion.setText("Ninguna carta\nes jugable.\nPasa turno o descarta.")
+                self.lbl_instruccion.setText("Ninguna carta\nes jugable.\nDescarta o finaliza.")
         else:
             self.lbl_instruccion.setText("Selecciona un\nexpediente en\nel mapa primero.")
 
-        self.btn_pasar.setEnabled(not self.partida.resuelta)
+        # Estado del día
+        jugado   = self.partida.mazo._jugado_hoy
+        descartado = self.partida.mazo._descartado_hoy
+        partes = []
+        if jugado:
+            partes.append("✓ carta jugada")
+        if descartado:
+            partes.append("✓ descarte hecho")
+        self.lbl_estado_dia.setText("  ".join(partes) if partes else "")
+
+        self.btn_finalizar.setEnabled(not self.partida.resuelta)
 
     def _es_jugable(self, idx_carta: int) -> bool:
         """True si la carta se puede jugar sobre el crimen seleccionado."""
@@ -349,5 +372,5 @@ class PanelMano(QWidget):
     def _on_carta_descartada(self, idx_mano: int):
         self.carta_descartada.emit(idx_mano)
 
-    def _on_pasar(self):
-        self.turno_pasado.emit()
+    def _on_finalizar(self):
+        self.dia_finalizado.emit()
