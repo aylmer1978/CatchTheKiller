@@ -20,13 +20,18 @@ from core.carta import Carta, TipoCarta
 TAMANYO_MANO = 3
 
 DISTRIBUCION = [
-    (TipoCarta.INVESTIGAR_EXPEDIENTE, 3),
-    (TipoCarta.INVESTIGAR_CASO,       1),
-    (TipoCarta.ATRIBUTO_LUGAR,        4),
-    (TipoCarta.ATRIBUTO_FRANJA,       4),
-    (TipoCarta.ATRIBUTO_ARMA,         4),
-    (TipoCarta.ATRIBUTO_VICTIMA,      4),
-    (TipoCarta.ATRIBUTO_OTROS,        4),
+    (TipoCarta.INVESTIGAR_EXPEDIENTE,  3),
+    (TipoCarta.INVESTIGAR_CASO,        1),
+    (TipoCarta.ATRIBUTO_LUGAR,         4),
+    (TipoCarta.ATRIBUTO_FRANJA,        4),
+    (TipoCarta.ATRIBUTO_ARMA,          4),
+    (TipoCarta.ATRIBUTO_VICTIMA,       4),
+    (TipoCarta.ATRIBUTO_OTROS,         4),
+    (TipoCarta.INV_PARALELA_LUGAR,     1),
+    (TipoCarta.INV_PARALELA_FRANJA,    1),
+    (TipoCarta.INV_PARALELA_ARMA,      1),
+    (TipoCarta.INV_PARALELA_VICTIMA,   1),
+    (TipoCarta.INV_PARALELA_OTROS,     1),
 ]
 
 

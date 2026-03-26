@@ -13,7 +13,7 @@ from enum import Enum
 from core.crimen import Crimen, ATRIBUTOS
 from core.asesino import Asesino
 from core.generador import generar_crimenes_asesino, generar_crimenes_senuelo
-from core.carta import Carta, TipoCarta
+from core.carta import Carta, TipoCarta, TIPOS_INV_PARALELA, PARALELA_A_ATRIBUTO
 from core.mazo import Mazo
 from core.evento import Evento, TipoEvento, generar_evento
 
@@ -70,13 +70,15 @@ class ResultadoCarta:
         nuevo_crimen:   Crimen | None = None,
         regenero_mazo:  bool = False,
         motivo_fallo:   str = "",
+        texto_paralela: str = "",
     ):
-        self.exito         = exito
-        self.carta         = carta
-        self.atributos     = atributos        # atributos revelados
-        self.nuevo_crimen  = nuevo_crimen     # crimen que apareció en el mapa, si hay
-        self.regenero_mazo = regenero_mazo   # si el mazo se regeneró (penalización)
-        self.motivo_fallo  = motivo_fallo
+        self.exito          = exito
+        self.carta          = carta
+        self.atributos      = atributos
+        self.nuevo_crimen   = nuevo_crimen
+        self.regenero_mazo  = regenero_mazo
+        self.motivo_fallo   = motivo_fallo
+        self.texto_paralela = texto_paralela  # resultado de investigación paralela
 
 
 class Partida:
@@ -131,6 +133,10 @@ class Partida:
     def _hacer_visible(self, idx: int) -> None:
         crimen = self._pool[idx]
         crimen.visible_en_mapa = True
+        # Revelar 2 atributos aleatorios al aparecer el crimen
+        attrs_a_revelar = random.sample(list(ATRIBUTOS), 2)
+        for a in attrs_a_revelar:
+            crimen.revelar(a)
         if crimen.marcado_asesino:
             self.victimas += 1
             self.historial_victimas.append({
@@ -139,7 +145,7 @@ class Partida:
                 "franja":  crimen.franja,
                 "idx":     idx,
             })
-        self.dias_sin_crimen = 0   # reset al aparecer cualquier crimen
+        self.dias_sin_crimen = 0
 
     # ── Consultas ─────────────────────────────────────────────────────── #
 
@@ -166,13 +172,23 @@ class Partida:
     def sospechosos(self) -> list[tuple[int, Crimen]]:
         return [(i, c) for i, c in enumerate(self._pool) if c.sospechoso]
 
-    def carta_usable_en(self, idx_carta: int, idx_crimen: int) -> tuple[bool, str]:
+    def carta_usable_en(self, idx_carta: int, idx_crimen: int | None) -> tuple[bool, str]:
         """
-        Comprueba si la carta idx_carta se puede jugar en el crimen idx_crimen.
-        Devuelve (usable, motivo_si_no).
+        Comprueba si la carta idx_carta se puede jugar.
+        Las cartas de investigación paralela no requieren crimen (idx_crimen=None).
         """
         if not (0 <= idx_carta < len(self.mazo.mano)):
             return False, "Índice de carta inválido."
+
+        carta = self.mazo.mano[idx_carta]
+
+        # Cartas de investigación paralela: siempre jugables (no necesitan crimen)
+        if carta.es_inv_paralela():
+            return True, ""
+
+        # El resto requieren crimen seleccionado
+        if idx_crimen is None:
+            return False, "Selecciona un expediente primero."
 
         crimen = self._pool[idx_crimen]
         if not crimen.visible_en_mapa or crimen.archivado:
@@ -180,9 +196,6 @@ class Partida:
         if crimen.todos_revelados():
             return False, "Este expediente ya está completamente revelado."
 
-        carta = self.mazo.mano[idx_carta]
-
-        # Para cartas de atributo específico: comprobar que ese atributo no esté ya revelado
         if carta.es_atributo_especifico():
             if carta.atributo in crimen.campos_revelados:
                 return False, f"El atributo '{carta.atributo}' ya está revelado."
@@ -191,8 +204,44 @@ class Partida:
 
     # ── Acciones de juego ─────────────────────────────────────────────── #
 
-    def _aplicar_carta(self, carta: Carta, idx_crimen: int) -> list[str]:
-        """Aplica el efecto de la carta. Devuelve atributos revelados."""
+    def _aplicar_carta(self, carta: Carta, idx_crimen: int | None) -> tuple[list[str], str]:
+        """
+        Aplica el efecto de la carta.
+        Devuelve (atributos_revelados, texto_resultado).
+        texto_resultado es solo relevante para cartas paralelas.
+        """
+        # ── Investigación paralela: revela un valor que NO es la firma ──
+        if carta.es_inv_paralela():
+            attr = PARALELA_A_ATRIBUTO[carta.tipo]
+            valor_firma = self.asesino.valores_firma.get(attr)
+            clave_json = {
+                "lugar":   "lugares",
+                "franja":  "franjas",
+                "arma":    "armas",
+                "victima": "victimas",
+                "otros":   "otros",
+            }[attr]
+            # Elegir un valor aleatorio que NO sea el de la firma para ese atributo
+            candidatos = [v for v in self.elementos[clave_json] if v != valor_firma]
+            if candidatos:
+                valor_descartado = random.choice(candidatos)
+                from core.crimen import ETIQUETAS
+                attr_label = ETIQUETAS.get(attr, attr)
+                texto = (
+                    f"Investigación paralela — {attr_label}\n\n"
+                    f"Las pruebas descartan:\n"
+                    f"«{valor_descartado}»\n\n"
+                    f"Este valor NO forma parte\n"
+                    f"de la firma del asesino."
+                )
+            else:
+                texto = "No se encontraron datos concluyentes."
+            return [], texto
+
+        # ── Cartas normales sobre un crimen ─────────────────────────────
+        if idx_crimen is None:
+            return [], ""
+
         crimen = self._pool[idx_crimen]
         a_revelar: list[str] = []
 
@@ -209,31 +258,37 @@ class Partida:
 
         for a in a_revelar:
             crimen.revelar(a)
-        return a_revelar
+        return a_revelar, ""
 
-    def jugar_carta(self, idx_carta: int, idx_crimen: int) -> ResultadoCarta:
+    def jugar_carta(self, idx_carta: int, idx_crimen: int | None) -> ResultadoCarta:
         """
-        Juega la carta idx_carta sobre el crimen idx_crimen.
-        La carta se consume. NO se roba nueva hasta finalizar el día.
-        Solo se puede jugar una carta por día.
+        Juega la carta idx_carta.
+        Para cartas normales, idx_crimen debe apuntar al expediente objetivo.
+        Para cartas de investigación paralela, idx_crimen puede ser None.
         """
         if self.resuelta:
-            return ResultadoCarta(False, self.mazo.mano[idx_carta], [],
-                                  motivo_fallo="La partida ya está resuelta.")
+            carta_ref = self.mazo.mano[idx_carta] if idx_carta < len(self.mazo.mano) else None
+            return ResultadoCarta(False, carta_ref, [], motivo_fallo="La partida ya está resuelta.")
+
         if not self.mazo.puede_jugar():
-            return ResultadoCarta(False, self.mazo.mano[idx_carta], [],
-                                  motivo_fallo="Ya jugaste una carta hoy.")
+            carta_ref = self.mazo.mano[idx_carta]
+            return ResultadoCarta(False, carta_ref, [], motivo_fallo="Ya jugaste una carta hoy.")
 
         usable, motivo = self.carta_usable_en(idx_carta, idx_crimen)
         if not usable:
-            return ResultadoCarta(False, self.mazo.mano[idx_carta], [],
-                                  motivo_fallo=motivo)
+            carta_ref = self.mazo.mano[idx_carta]
+            return ResultadoCarta(False, carta_ref, [], motivo_fallo=motivo)
 
         carta = self.mazo.mano[idx_carta]
-        atributos = self._aplicar_carta(carta, idx_crimen)
+        atributos, texto_paralela = self._aplicar_carta(carta, idx_crimen)
         self.mazo.jugar(idx_carta)
 
-        return ResultadoCarta(exito=True, carta=carta, atributos=atributos)
+        return ResultadoCarta(
+            exito=True,
+            carta=carta,
+            atributos=atributos,
+            texto_paralela=texto_paralela,
+        )
 
     def descartar_carta(self, idx_carta: int) -> tuple[bool, Carta | None, str]:
         """Descarte gratuito (una vez por día). No roba hasta finalizar el día."""

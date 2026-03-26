@@ -16,13 +16,18 @@ from enum import Enum, auto
 
 
 class TipoCarta(Enum):
-    INVESTIGAR_EXPEDIENTE = auto()
-    INVESTIGAR_CASO       = auto()
-    ATRIBUTO_LUGAR        = auto()
-    ATRIBUTO_FRANJA       = auto()
-    ATRIBUTO_ARMA         = auto()
-    ATRIBUTO_VICTIMA      = auto()
-    ATRIBUTO_OTROS        = auto()
+    INVESTIGAR_EXPEDIENTE    = auto()
+    INVESTIGAR_CASO          = auto()
+    ATRIBUTO_LUGAR           = auto()
+    ATRIBUTO_FRANJA          = auto()
+    ATRIBUTO_ARMA            = auto()
+    ATRIBUTO_VICTIMA         = auto()
+    ATRIBUTO_OTROS           = auto()
+    INV_PARALELA_LUGAR       = auto()
+    INV_PARALELA_FRANJA      = auto()
+    INV_PARALELA_ARMA        = auto()
+    INV_PARALELA_VICTIMA     = auto()
+    INV_PARALELA_OTROS       = auto()
 
 
 # Metadatos de presentación por tipo
@@ -69,15 +74,63 @@ CARTA_META = {
         "descripcion": "Revela los detalles extra\ndel expediente.",
         "atributo":    "otros",
     },
+    TipoCarta.INV_PARALELA_LUGAR: {
+        "nombre":      "Inv. Paralela: Lugar",
+        "icono":       "🔎",
+        "descripcion": "Revela un valor de LUGAR\nque NO es parte de la firma.",
+        "atributo":    "lugar",
+    },
+    TipoCarta.INV_PARALELA_FRANJA: {
+        "nombre":      "Inv. Paralela: Franja",
+        "icono":       "🔎",
+        "descripcion": "Revela un valor de FRANJA\nque NO es parte de la firma.",
+        "atributo":    "franja",
+    },
+    TipoCarta.INV_PARALELA_ARMA: {
+        "nombre":      "Inv. Paralela: Arma",
+        "icono":       "🔎",
+        "descripcion": "Revela un valor de ARMA\nque NO es parte de la firma.",
+        "atributo":    "arma",
+    },
+    TipoCarta.INV_PARALELA_VICTIMA: {
+        "nombre":      "Inv. Paralela: Victima",
+        "icono":       "🔎",
+        "descripcion": "Revela un valor de VICTIMA\nque NO es parte de la firma.",
+        "atributo":    "victima",
+    },
+    TipoCarta.INV_PARALELA_OTROS: {
+        "nombre":      "Inv. Paralela: Otros",
+        "icono":       "🔎",
+        "descripcion": "Revela un valor de OTROS\nque NO es parte de la firma.",
+        "atributo":    "otros",
+    },
 }
 
-# Cartas que revelan un atributo específico
+# Cartas que revelan un atributo específico de un crimen
 TIPOS_ATRIBUTO = {
     TipoCarta.ATRIBUTO_LUGAR,
     TipoCarta.ATRIBUTO_FRANJA,
     TipoCarta.ATRIBUTO_ARMA,
     TipoCarta.ATRIBUTO_VICTIMA,
     TipoCarta.ATRIBUTO_OTROS,
+}
+
+# Cartas de investigación paralela (revelan qué NO es la firma)
+TIPOS_INV_PARALELA = {
+    TipoCarta.INV_PARALELA_LUGAR,
+    TipoCarta.INV_PARALELA_FRANJA,
+    TipoCarta.INV_PARALELA_ARMA,
+    TipoCarta.INV_PARALELA_VICTIMA,
+    TipoCarta.INV_PARALELA_OTROS,
+}
+
+# Mapa de carta paralela → atributo correspondiente
+PARALELA_A_ATRIBUTO = {
+    TipoCarta.INV_PARALELA_LUGAR:   "lugar",
+    TipoCarta.INV_PARALELA_FRANJA:  "franja",
+    TipoCarta.INV_PARALELA_ARMA:    "arma",
+    TipoCarta.INV_PARALELA_VICTIMA: "victima",
+    TipoCarta.INV_PARALELA_OTROS:   "otros",
 }
 
 
@@ -104,6 +157,9 @@ class Carta:
 
     def es_atributo_especifico(self) -> bool:
         return self.tipo in TIPOS_ATRIBUTO
+
+    def es_inv_paralela(self) -> bool:
+        return self.tipo in TIPOS_INV_PARALELA
 
     def __repr__(self) -> str:
         return f"Carta({self.icono} {self.nombre})"

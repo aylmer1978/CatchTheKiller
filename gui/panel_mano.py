@@ -275,7 +275,7 @@ class PanelMano(QWidget):
 
         col_accion.addSpacing(4)
 
-        self.btn_finalizar = QPushButton("▶  FINALIZAR DÍA")
+        self.btn_finalizar = QPushButton(">>  FINALIZAR DIA")
         self.btn_finalizar.setFixedSize(148, 36)
         self.btn_finalizar.setToolTip("Terminar el día y reponer cartas")
         self.btn_finalizar.setStyleSheet(f"""
@@ -361,12 +361,19 @@ class PanelMano(QWidget):
         self.btn_finalizar.setEnabled(not self.partida.resuelta)
 
     def _es_jugable(self, idx_carta: int) -> bool:
-        """True si la carta se puede jugar sobre el crimen seleccionado."""
-        if self._idx_crimen_sel is None:
-            return False
+        """True si la carta se puede jugar en el contexto actual."""
         if self.partida.resuelta:
             return False
         if not self.partida.mazo.puede_jugar():
+            return False
+        from core.carta import TIPOS_INV_PARALELA
+        carta = self.partida.mazo.mano[idx_carta]
+        # Cartas paralelas: jugables siempre (no necesitan crimen)
+        if carta.tipo in TIPOS_INV_PARALELA:
+            usable, _ = self.partida.carta_usable_en(idx_carta, None)
+            return usable
+        # Resto: necesitan crimen seleccionado
+        if self._idx_crimen_sel is None:
             return False
         usable, _ = self.partida.carta_usable_en(idx_carta, self._idx_crimen_sel)
         return usable

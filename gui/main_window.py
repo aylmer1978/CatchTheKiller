@@ -235,25 +235,31 @@ class PantallaJuego(QWidget):
     # ── Acciones de carta ─────────────────────────────────────────────── #
 
     def _on_carta_jugada(self, idx_carta: int):
-        if self._idx_crimen_sel is None:
+        from core.carta import TIPOS_INV_PARALELA
+        carta = self.partida.mazo.mano[idx_carta] if idx_carta < len(self.partida.mazo.mano) else None
+
+        # Cartas paralelas no necesitan crimen seleccionado
+        es_paralela = carta and carta.tipo in TIPOS_INV_PARALELA
+        idx_crimen = None if es_paralela else self._idx_crimen_sel
+
+        if not es_paralela and idx_crimen is None:
             return
 
-        resultado = self.partida.jugar_carta(idx_carta, self._idx_crimen_sel)
+        resultado = self.partida.jugar_carta(idx_carta, idx_crimen)
 
         if not resultado.exito:
-            self._dialogo(
-                "CARTA NO JUGABLE",
-                resultado.motivo_fallo,
-                color=ROJO
-            )
+            self._dialogo("CARTA NO JUGABLE", resultado.motivo_fallo, color=ROJO)
             return
 
-        # Aviso de regeneración de mazo (penalización)
+        # Mostrar resultado de investigación paralela
+        if resultado.texto_paralela:
+            self._dialogo("INVESTIGACION PARALELA", resultado.texto_paralela, color=VERDE)
+
         if resultado.regenero_mazo:
             self._dialogo(
                 "MAZO AGOTADO",
                 "Se ha barajado el mazo de nuevo.\n"
-                "Ha aparecido un nuevo crimen como penalización.",
+                "Ha aparecido un nuevo crimen como penalizacion.",
                 color=ROJO
             )
 
