@@ -13,6 +13,14 @@ Deben ser PNG con fondo TRANSPARENTE (canal alpha).
 Sin rostros identificables.
 Tamaño recomendado: 120×130 px (o proporcional). Se escalan al 75% del ancho.
 
+IMAGEN GENÉRICA (obligatoria para el sistema de revelación):
+-------------------------------------------------------------
+_generico.png   ← silueta de cadáver, sin rostro ni detalles identificativos.
+                  Se muestra SIEMPRE hasta que existan assets específicos de cuerpo.
+                  (El cuerpo no está vinculado a ningún atributo concreto del crimen,
+                  por lo que la genérica actúa como placeholder permanente inicial.)
+                  PNG con fondo transparente. Tamaño recomendado: 120×130 px.
+
 LISTA DE ARCHIVOS VÁLIDOS:
 ---------------------------
 

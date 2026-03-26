@@ -78,49 +78,42 @@ def _listar_imagenes(carpeta: Path, prefijo: str) -> tuple[Path, ...]:
 
 
 def imagen_lugar(valor_lugar: str) -> Path | None:
-    """
-    Devuelve una imagen aleatoria para el lugar indicado.
-    Devuelve None si no hay ninguna disponible.
-
-    Ejemplo:
-        imagen_lugar("Callejón")  →  Path("assets/lugares/callejon_02.png")
-    """
+    """Imagen aleatoria para el lugar. None si no hay assets."""
     carpeta = _ASSETS_DIR / "lugares"
-    prefijo = normalizar_nombre(valor_lugar)
-    opciones = _listar_imagenes(carpeta, prefijo)
-    if not opciones:
-        return None
-    return random.choice(opciones)
+    opciones = _listar_imagenes(carpeta, normalizar_nombre(valor_lugar))
+    return random.choice(opciones) if opciones else None
+
+
+def imagen_lugar_generica() -> Path | None:
+    """Imagen genérica de lugar (gris, sin revelar). Archivo: _generico.png"""
+    ruta = _ASSETS_DIR / "lugares" / "_generico.png"
+    return ruta if ruta.exists() else None
 
 
 def imagen_cuerpo() -> Path | None:
-    """
-    Devuelve una imagen aleatoria de cuerpo (genérica, sin especificidad).
-    Devuelve None si no hay ninguna disponible.
-    Los archivos de cuerpo deben ser PNG con fondo transparente.
-    """
+    """Imagen aleatoria de cuerpo. None si no hay assets."""
     carpeta = _ASSETS_DIR / "cuerpos"
     opciones = _listar_imagenes(carpeta, "cuerpo")
-    if not opciones:
-        return None
-    return random.choice(opciones)
+    return random.choice(opciones) if opciones else None
+
+
+def imagen_cuerpo_generico() -> Path | None:
+    """Imagen genérica de cuerpo (silueta). Archivo: _generico.png"""
+    ruta = _ASSETS_DIR / "cuerpos" / "_generico.png"
+    return ruta if ruta.exists() else None
 
 
 def imagen_arma(valor_arma: str) -> Path | None:
-    """
-    Devuelve una imagen aleatoria para el arma indicada.
-    Devuelve None si no hay ninguna disponible.
-    Los archivos de arma deben ser PNG con fondo transparente.
-
-    Ejemplo:
-        imagen_arma("Cuchillo")  →  Path("assets/armas/cuchillo_01.png")
-    """
+    """Imagen aleatoria para el arma. None si no hay assets."""
     carpeta = _ASSETS_DIR / "armas"
-    prefijo = normalizar_nombre(valor_arma)
-    opciones = _listar_imagenes(carpeta, prefijo)
-    if not opciones:
-        return None
-    return random.choice(opciones)
+    opciones = _listar_imagenes(carpeta, normalizar_nombre(valor_arma))
+    return random.choice(opciones) if opciones else None
+
+
+def imagen_arma_generica() -> Path | None:
+    """Imagen genérica de arma (silueta con ?). Archivo: _generico.png"""
+    ruta = _ASSETS_DIR / "armas" / "_generico.png"
+    return ruta if ruta.exists() else None
 
 
 def hay_assets_lugar(valor_lugar: str) -> bool:

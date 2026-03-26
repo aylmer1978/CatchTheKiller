@@ -43,7 +43,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.elementos = elementos
         self.setWindowTitle("CATCH THE KILLER")
-        self.setMinimumSize(1280, 820)
+        self.setMinimumSize(1280, 920)
         self.setStyleSheet(STYLESHEET)
 
         self._stack = QStackedWidget()

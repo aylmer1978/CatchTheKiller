@@ -16,7 +16,11 @@ from PySide6.QtGui import QPixmap, QPainter
 
 from core.crimen import Crimen, ATRIBUTOS, ETIQUETAS
 from core.partida import Partida
-from core.assets import imagen_lugar, imagen_arma, imagen_cuerpo
+from core.assets import (
+    imagen_lugar, imagen_lugar_generica,
+    imagen_arma,  imagen_arma_generica,
+    imagen_cuerpo, imagen_cuerpo_generico,
+)
 from gui.estilos import *
 
 
@@ -43,7 +47,7 @@ class PanelExpediente(QWidget):
                 border-radius: 2px;
             }}
         """)
-        self.setFixedWidth(270)
+        self.setFixedWidth(290)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
 
         layout = QVBoxLayout(self)
@@ -75,9 +79,12 @@ class PanelExpediente(QWidget):
         layout.addWidget(sep)
         layout.addSpacing(4)
 
-        # ── Imagen compuesta (lugar + cuerpo) ─────────────
+        # ── Imagen compuesta (lugar + cuerpo + arma) ──────
+        # El panel tiene 290px de ancho con 16px de margen a cada lado.
+        # Ancho útil = 290 - 32 = 258px. Cuadrado 1:1.
+        IMG_SIZE = 258
         self.img_widget = _ImagenCrimen()
-        self.img_widget.setFixedHeight(130)
+        self.img_widget.setFixedSize(IMG_SIZE, IMG_SIZE)
         layout.addWidget(self.img_widget)
 
         # ── Atributos ─────────────────────────────────────
@@ -222,12 +229,14 @@ class PanelExpediente(QWidget):
                 """)
 
         # Imagen compuesta: lugar + cuerpo + arma
-        # Solo se muestran las capas cuyos atributos estén ya revelados
-        if "lugar" in crimen.campos_revelados:
-            valor_arma = crimen.valor("arma") if "arma" in crimen.campos_revelados else None
-            self.img_widget.cargar(crimen.lugar, valor_arma)
-        else:
-            self.img_widget.limpiar()
+        # Cada capa muestra la genérica si el atributo no está revelado,
+        # o la imagen específica si lo está (y existe el asset).
+        lugar_revelado = "lugar" in crimen.campos_revelados
+        arma_revelada  = "arma"  in crimen.campos_revelados
+        self.img_widget.cargar(
+            valor_lugar = crimen.valor("lugar") if lugar_revelado else None,
+            valor_arma  = crimen.valor("arma")  if arma_revelada  else None,
+        )
 
         # Botones
         self.btn_sospechoso.setChecked(crimen.sospechoso)
@@ -254,7 +263,7 @@ class PanelExpediente(QWidget):
         self.btn_sospechoso.setEnabled(False)
         self.btn_archivar.setEnabled(False)
         self.btn_sospechoso.setText("MARCAR SOSPECHOSO")
-        self.img_widget.limpiar()
+        self.img_widget.cargar(None, None)   # muestra las tres genéricas
 
     def refrescar(self):
         """Refresca sin cambiar el crimen seleccionado."""
@@ -292,24 +301,41 @@ class _ImagenCrimen(QWidget):
         self._sin_imagen = True
         self.setStyleSheet(f"background: {GRIS_OSCURO}; border: none;")
 
-    def cargar(self, valor_lugar: str, valor_arma: str | None = None) -> None:
+    def cargar(self, valor_lugar: str | None, valor_arma: str | None = None) -> None:
         """
-        Carga las imágenes disponibles y repinta.
-        valor_arma puede ser None si el atributo aún no está revelado.
+        Carga las imágenes y repinta.
+
+        valor_lugar = None  → usa la imagen genérica de lugar (_generico.png)
+        valor_lugar = str   → usa la imagen específica (o genérica si no existe)
+
+        valor_arma  = None  → usa la imagen genérica de arma (_generico.png)
+        valor_arma  = str   → usa la imagen específica (o genérica si no existe)
+
+        El cuerpo siempre muestra la genérica hasta que haya assets específicos.
         """
         self._sin_imagen = False
 
-        ruta = imagen_lugar(valor_lugar)
+        # ── Lugar ──────────────────────────────────────────
+        if valor_lugar is not None:
+            ruta = imagen_lugar(valor_lugar)
+            if not ruta:
+                ruta = imagen_lugar_generica()
+        else:
+            ruta = imagen_lugar_generica()
         self._pixmap_lugar = QPixmap(str(ruta)) if ruta and ruta.exists() else None
 
-        ruta = imagen_cuerpo()
-        self._pixmap_cuerpo = QPixmap(str(ruta)) if ruta and ruta.exists() else None
+        # ── Cuerpo (siempre genérico hasta tener assets) ───
+        ruta_c = imagen_cuerpo() or imagen_cuerpo_generico()
+        self._pixmap_cuerpo = QPixmap(str(ruta_c)) if ruta_c and ruta_c.exists() else None
 
+        # ── Arma ───────────────────────────────────────────
         if valor_arma is not None:
-            ruta = imagen_arma(valor_arma)
-            self._pixmap_arma = QPixmap(str(ruta)) if ruta and ruta.exists() else None
+            ruta_a = imagen_arma(valor_arma)
+            if not ruta_a:
+                ruta_a = imagen_arma_generica()
         else:
-            self._pixmap_arma = None
+            ruta_a = imagen_arma_generica()
+        self._pixmap_arma = QPixmap(str(ruta_a)) if ruta_a and ruta_a.exists() else None
 
         self.update()
 

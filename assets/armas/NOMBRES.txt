@@ -12,6 +12,13 @@ superpuestas sobre el fondo (capa superior junto al cuerpo).
 Deben ser PNG con fondo TRANSPARENTE (canal alpha).
 Tamaño recomendado: 100×100 px (o proporcional). Se escalan al 35% del ancho.
 
+IMAGEN GENÉRICA (obligatoria para el sistema de revelación):
+-------------------------------------------------------------
+_generico.png   ← silueta de arma con símbolo de interrogante.
+                  Se muestra ANTES de que el arma sea revelada por investigación.
+                  Cuando se revela, se sustituye por la imagen específica del arma.
+                  PNG con fondo transparente. Tamaño recomendado: 100×100 px.
+
 LISTA COMPLETA DE NOMBRES:
 ---------------------------
 

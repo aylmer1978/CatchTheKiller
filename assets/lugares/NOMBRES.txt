@@ -11,6 +11,13 @@ Las imágenes de lugar son el FONDO de la ficha (capa inferior).
 Deben ser opacas (sin transparencia). Formato recomendado: PNG o JPG.
 Tamaño recomendado: 270×130 px (o proporcional).
 
+IMAGEN GENÉRICA (obligatoria para el sistema de revelación):
+-------------------------------------------------------------
+_generico.png   ← localización en grises/desaturada, sin detalles específicos.
+                  Se muestra ANTES de que el lugar sea revelado por investigación.
+                  Cuando se revela, se sustituye por la imagen específica del lugar.
+                  Tamaño recomendado: 270×130 px. Puede ser opaca.
+
 LISTA COMPLETA DE NOMBRES:
 ---------------------------
 
