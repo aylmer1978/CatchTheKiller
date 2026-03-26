@@ -21,7 +21,7 @@ VERDE        = "#27ae60"
 VERDE_OSCURO = "#1a6b3a"
 AZUL         = "#2980b9"
 
-MONO = "'Courier New', 'Courier', monospace"
+MONO = "'Courier New', monospace"
 
 STYLESHEET = f"""
 QMainWindow, QWidget {{
