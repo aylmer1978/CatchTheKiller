@@ -12,9 +12,11 @@ from PySide6.QtWidgets import (
     QPushButton, QLabel, QFrame, QSizePolicy
 )
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPixmap, QPainter
 
 from core.crimen import Crimen, ATRIBUTOS, ETIQUETAS
 from core.partida import Partida
+from core.assets import imagen_lugar, imagen_arma, imagen_cuerpo
 from gui.estilos import *
 
 
@@ -72,6 +74,11 @@ class PanelExpediente(QWidget):
         sep.setFixedHeight(1)
         layout.addWidget(sep)
         layout.addSpacing(4)
+
+        # ── Imagen compuesta (lugar + cuerpo) ─────────────
+        self.img_widget = _ImagenCrimen()
+        self.img_widget.setFixedHeight(130)
+        layout.addWidget(self.img_widget)
 
         # ── Atributos ─────────────────────────────────────
         self.filas_attr: dict[str, tuple[QLabel, QLabel]] = {}
@@ -214,8 +221,15 @@ class PanelExpediente(QWidget):
                     border: none;
                 """)
 
-        # Botones
+        # Imagen compuesta: lugar + cuerpo + arma
+        # Solo se muestran las capas cuyos atributos estén ya revelados
+        if "lugar" in crimen.campos_revelados:
+            valor_arma = crimen.valor("arma") if "arma" in crimen.campos_revelados else None
+            self.img_widget.cargar(crimen.lugar, valor_arma)
+        else:
+            self.img_widget.limpiar()
 
+        # Botones
         self.btn_sospechoso.setChecked(crimen.sospechoso)
         self.btn_sospechoso.setText(
             "DESMARCAR SOSPECHOSO" if crimen.sospechoso else "MARCAR SOSPECHOSO"
@@ -240,6 +254,7 @@ class PanelExpediente(QWidget):
         self.btn_sospechoso.setEnabled(False)
         self.btn_archivar.setEnabled(False)
         self.btn_sospechoso.setText("MARCAR SOSPECHOSO")
+        self.img_widget.limpiar()
 
     def refrescar(self):
         """Refresca sin cambiar el crimen seleccionado."""
@@ -255,3 +270,108 @@ class PanelExpediente(QWidget):
     def _on_archivar(self):
         if self._idx_actual is not None:
             self.accion_archivar.emit(self._idx_actual)
+
+# ── Widget de imagen compuesta ────────────────────────────────────────── #
+
+class _ImagenCrimen(QWidget):
+    """
+    Widget que muestra la imagen compuesta del crimen con tres capas:
+      1. Lugar  (fondo opaco, estirado al ancho)
+      2. Cuerpo (PNG transparente, centrado y alineado abajo)
+      3. Arma   (PNG transparente, esquina inferior derecha, 35% del ancho)
+
+    Si no hay assets disponibles para una capa, se omite sin error.
+    Si el arma no está revelada aún, no se muestra la capa de arma.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._pixmap_lugar:  QPixmap | None = None
+        self._pixmap_cuerpo: QPixmap | None = None
+        self._pixmap_arma:   QPixmap | None = None
+        self._sin_imagen = True
+        self.setStyleSheet(f"background: {GRIS_OSCURO}; border: none;")
+
+    def cargar(self, valor_lugar: str, valor_arma: str | None = None) -> None:
+        """
+        Carga las imágenes disponibles y repinta.
+        valor_arma puede ser None si el atributo aún no está revelado.
+        """
+        self._sin_imagen = False
+
+        ruta = imagen_lugar(valor_lugar)
+        self._pixmap_lugar = QPixmap(str(ruta)) if ruta and ruta.exists() else None
+
+        ruta = imagen_cuerpo()
+        self._pixmap_cuerpo = QPixmap(str(ruta)) if ruta and ruta.exists() else None
+
+        if valor_arma is not None:
+            ruta = imagen_arma(valor_arma)
+            self._pixmap_arma = QPixmap(str(ruta)) if ruta and ruta.exists() else None
+        else:
+            self._pixmap_arma = None
+
+        self.update()
+
+    def limpiar(self) -> None:
+        self._pixmap_lugar  = None
+        self._pixmap_cuerpo = None
+        self._pixmap_arma   = None
+        self._sin_imagen    = True
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        rect = self.rect()
+
+        hay_algo = (self._pixmap_lugar or self._pixmap_cuerpo or self._pixmap_arma)
+
+        if self._sin_imagen or not hay_algo:
+            painter.fillRect(rect, Qt.transparent)
+            if not self._sin_imagen:
+                from PySide6.QtGui import QColor, QFont
+                painter.setPen(QColor(GRIS_BORDE))
+                painter.setFont(QFont("Courier New", 8))
+                painter.drawText(rect, Qt.AlignCenter, "[ sin ilustracion ]")
+            painter.end()
+            return
+
+        # ── Capa 1: lugar (fondo) ─────────────────────────
+        if self._pixmap_lugar:
+            px = self._pixmap_lugar.scaled(
+                rect.width(), rect.height(),
+                Qt.KeepAspectRatioByExpanding,
+                Qt.SmoothTransformation,
+            )
+            x = (rect.width()  - px.width())  // 2
+            y = (rect.height() - px.height()) // 2
+            painter.drawPixmap(x, y, px)
+
+        # ── Capa 2: cuerpo (centrado, alineado abajo) ─────
+        if self._pixmap_cuerpo:
+            max_w = int(rect.width() * 0.75)
+            max_h = rect.height()
+            px_c = self._pixmap_cuerpo.scaled(
+                max_w, max_h,
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation,
+            )
+            cx = (rect.width() - px_c.width()) // 2
+            cy =  rect.height() - px_c.height()
+            painter.drawPixmap(cx, cy, px_c)
+
+        # ── Capa 3: arma (esquina inferior derecha) ───────
+        if self._pixmap_arma:
+            max_w = int(rect.width() * 0.35)
+            max_h = int(rect.height() * 0.45)
+            px_a = self._pixmap_arma.scaled(
+                max_w, max_h,
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation,
+            )
+            ax = rect.width()  - px_a.width()  - 4
+            ay = rect.height() - px_a.height() - 4
+            painter.drawPixmap(ax, ay, px_a)
+
+        painter.end()

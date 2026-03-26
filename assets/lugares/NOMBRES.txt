@@ -1,0 +1,39 @@
+ASSETS DE LUGARES — GUÍA DE NOMBRES
+=====================================
+
+Formato:  {nombre_normalizado}_{numero}.png
+Ejemplo:  callejon_01.png, callejon_02.png, callejon_03.png
+
+Puedes añadir tantas variantes por lugar como quieras (_01, _02, _03...).
+El juego elegirá una al azar cada vez que se muestre el crimen.
+
+Las imágenes de lugar son el FONDO de la ficha (capa inferior).
+Deben ser opacas (sin transparencia). Formato recomendado: PNG o JPG.
+Tamaño recomendado: 270×130 px (o proporcional).
+
+LISTA COMPLETA DE NOMBRES:
+---------------------------
+
+Valor en el juego              Nombre de archivo
+------------------------------------------------------
+Callejón                    →  callejon_01.png
+Metro                       →  metro_01.png
+Bosque                      →  bosque_01.png
+Casa                        →  casa_01.png
+Motel de carretera          →  motel_de_carretera_01.png
+Baños públicos              →  banos_publicos_01.png
+Desguace                    →  desguace_01.png
+Muelle                      →  muelle_01.png
+Parque                      →  parque_01.png
+Iglesia                     →  iglesia_01.png
+Aparcamiento subterráneo    →  aparcamiento_subterraneo_01.png
+Edificio en ruinas          →  edificio_en_ruinas_01.png
+Autopista                   →  autopista_01.png
+Orilla del río              →  orilla_del_rio_01.png
+Hospital abandonado         →  hospital_abandonado_01.png
+Cementerio                  →  cementerio_01.png
+Almacén industrial          →  almacen_industrial_01.png
+Túnel                       →  tunel_01.png
+
+NOTA: Si añades nuevos lugares en elementos.json, el nombre del archivo
+será el valor en minúsculas, sin tildes, con espacios → guión bajo.

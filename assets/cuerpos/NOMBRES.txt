@@ -1,0 +1,34 @@
+ASSETS DE CUERPOS — GUÍA DE NOMBRES
+=====================================
+
+Formato:  cuerpo_{numero}.png
+Ejemplo:  cuerpo_01.png, cuerpo_02.png, cuerpo_03.png
+
+Los cuerpos son GENÉRICOS (no dependen del crimen concreto).
+El juego elegirá uno al azar independientemente del tipo de víctima.
+
+Las imágenes de cuerpo se muestran CENTRADAS y ALINEADAS EN LA PARTE
+INFERIOR de la ficha, sobre el fondo de lugar (capa intermedia).
+Deben ser PNG con fondo TRANSPARENTE (canal alpha).
+Sin rostros identificables.
+Tamaño recomendado: 120×130 px (o proporcional). Se escalan al 75% del ancho.
+
+LISTA DE ARCHIVOS VÁLIDOS:
+---------------------------
+
+cuerpo_01.png
+cuerpo_02.png
+cuerpo_03.png
+cuerpo_04.png
+cuerpo_05.png
+... (sin límite de variantes)
+
+ORDEN DE CAPAS EN LA FICHA:
+-----------------------------
+
+  [ fondo ]     lugares/callejon_01.png       ← capa 1 (opaca)
+  [ encima ]    cuerpos/cuerpo_02.png         ← capa 2 (transparente, centrado abajo)
+  [ encima ]    armas/cuchillo_01.png         ← capa 3 (transparente, esquina inferior derecha)
+
+NOTA: Si no hay ningún archivo cuerpo_*.png en esta carpeta, la capa
+de cuerpo simplemente no se muestra. El juego no lanza ningún error.

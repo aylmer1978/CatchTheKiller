@@ -1,0 +1,40 @@
+ASSETS DE ARMAS — GUÍA DE NOMBRES
+===================================
+
+Formato:  {nombre_normalizado}_{numero}.png
+Ejemplo:  cuchillo_01.png, cuchillo_02.png
+
+Puedes añadir tantas variantes por arma como quieras (_01, _02, _03...).
+El juego elegirá una al azar cada vez que se muestre el crimen.
+
+Las imágenes de arma se muestran en la ESQUINA INFERIOR DERECHA de la ficha
+superpuestas sobre el fondo (capa superior junto al cuerpo).
+Deben ser PNG con fondo TRANSPARENTE (canal alpha).
+Tamaño recomendado: 100×100 px (o proporcional). Se escalan al 35% del ancho.
+
+LISTA COMPLETA DE NOMBRES:
+---------------------------
+
+Valor en el juego              Nombre de archivo
+------------------------------------------------------
+Cuchillo                    →  cuchillo_01.png
+Pistola                     →  pistola_01.png
+Cuerda                      →  cuerda_01.png
+Bisturí                     →  bisturi_01.png
+Manos                       →  manos_01.png
+Martillo                    →  martillo_01.png
+Hacha                       →  hacha_01.png
+Veneno                      →  veneno_01.png
+Bate de béisbol             →  bate_de_beisbol_01.png
+Machete                     →  machete_01.png
+Destornillador              →  destornillador_01.png
+Alambre                     →  alambre_01.png
+Tijeras                     →  tijeras_01.png
+Escopeta                    →  escopeta_01.png
+Bolsa de plástico           →  bolsa_de_plastico_01.png
+Tubería de plomo            →  tuberia_de_plomo_01.png
+Arco y flecha               →  arco_y_flecha_01.png
+Cinta aislante              →  cinta_aislante_01.png
+
+NOTA: El arma solo aparece en la ficha cuando el atributo "Arma" ha sido
+revelado mediante investigación. Si no está revelado, la capa se omite.
