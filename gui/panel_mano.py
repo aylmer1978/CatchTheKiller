@@ -114,7 +114,7 @@ class WidgetCarta(QFrame):
         lbl_desc.setStyleSheet(f"""
             color: {GRIS_TEXTO};
             font-size: 9px;
-            line-height: 1.3;
+
             border: none;
             background: transparent;
         """)
@@ -259,7 +259,7 @@ class PanelMano(QWidget):
         self.lbl_instruccion.setStyleSheet(f"""
             color: {GRIS_TEXTO};
             font-size: 9px;
-            line-height: 1.5;
+
             border: none;
         """)
         col_accion.addWidget(self.lbl_instruccion)
@@ -343,13 +343,19 @@ class PanelMano(QWidget):
             self.lbl_instruccion.setText("Selecciona un\nexpediente en\nel mapa primero.")
 
         # Estado del día
-        jugado   = self.partida.mazo._jugado_hoy
-        descartado = self.partida.mazo._descartado_hoy
+        jugadas_rest = self.partida.mazo.jugadas_restantes()
+        descartado   = self.partida.mazo._descartado_hoy
+        max_jugadas  = self.partida.mazo._max_jugadas_hoy
+        max_mano     = self.partida.mazo.max_mano
+
         partes = []
-        if jugado:
-            partes.append("✓ carta jugada")
+        if jugadas_rest < max_jugadas:
+            jugadas_hechas = max_jugadas - jugadas_rest
+            partes.append(f"✓ {jugadas_hechas}/{max_jugadas} carta{'s' if max_jugadas>1 else ''}")
         if descartado:
-            partes.append("✓ descarte hecho")
+            partes.append("✓ descarte")
+        if max_mano != 3:
+            partes.append(f"mano máx: {max_mano}")
         self.lbl_estado_dia.setText("  ".join(partes) if partes else "")
 
         self.btn_finalizar.setEnabled(not self.partida.resuelta)
@@ -359,6 +365,8 @@ class PanelMano(QWidget):
         if self._idx_crimen_sel is None:
             return False
         if self.partida.resuelta:
+            return False
+        if not self.partida.mazo.puede_jugar():
             return False
         usable, _ = self.partida.carta_usable_en(idx_carta, self._idx_crimen_sel)
         return usable

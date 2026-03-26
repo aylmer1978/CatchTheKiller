@@ -136,8 +136,11 @@ class DossierFinal(QWidget):
         firma_layout.setContentsMargins(0, 0, 0, 0)
         firma_layout.setAlignment(Qt.AlignCenter)
 
+        modus = self.dossier.get("modus_declarado") or {}
         for i, (attr, val) in enumerate(firma.items()):
-            bloque = self._bloque_firma(ETIQUETAS.get(attr, attr), val)
+            # ¿El jugador acertó este rasgo?
+            acertado = modus.get(attr) == val
+            bloque = self._bloque_firma(ETIQUETAS.get(attr, attr), val, acertado if modus else None)
             firma_layout.addWidget(bloque)
             if i < len(firma) - 1:
                 sep_v = QLabel("·")
@@ -145,6 +148,30 @@ class DossierFinal(QWidget):
                 firma_layout.addWidget(sep_v)
 
         layout.addWidget(firma_widget)
+
+        # Mostrar lo que declaró el jugador si fue incorrecto
+        if modus and not victoria:
+            layout.addSpacing(8)
+            lbl_decl_tit = QLabel("TU DECLARACIÓN")
+            lbl_decl_tit.setAlignment(Qt.AlignCenter)
+            lbl_decl_tit.setStyleSheet(f"color: {GRIS_TEXTO}; font-size: 9px; letter-spacing: 3px;")
+            layout.addWidget(lbl_decl_tit)
+            decl_widget = QWidget()
+            decl_layout = QHBoxLayout(decl_widget)
+            decl_layout.setAlignment(Qt.AlignCenter)
+            decl_layout.setSpacing(0)
+            decl_layout.setContentsMargins(0, 0, 0, 0)
+            for i, (attr, val) in enumerate(modus.items()):
+                correcto = firma.get(attr) == val
+                color_val = VERDE if correcto else ROJO
+                bloque = self._bloque_firma(ETIQUETAS.get(attr, attr), val, correcto)
+                decl_layout.addWidget(bloque)
+                if i < len(modus) - 1:
+                    sep_v = QLabel("·")
+                    sep_v.setStyleSheet(f"color: {GRIS_BORDE}; font-size: 18px; padding: 0 16px;")
+                    decl_layout.addWidget(sep_v)
+            layout.addWidget(decl_widget)
+
         layout.addSpacing(24)
 
         # ── Víctimas ──────────────────────────────────────
@@ -191,9 +218,9 @@ class DossierFinal(QWidget):
         layout.addSpacing(20)
 
         stats = [
-            ("DIFICULTAD",       self.dossier["dificultad"]),
-            ("ACCIONES TOTALES", str(self.dossier["acciones_totales"])),
-            ("INTENTOS USADOS",  f"{self.dossier['intentos_usados']} / {self.dossier['intentos_max']}"),
+            ("DIFICULTAD",         self.dossier["dificultad"]),
+            ("DÍAS DE INVESTIGACIÓN", str(self.dossier["dias_totales"])),
+            ("INTENTOS USADOS",    f"{self.dossier['intentos_usados']} / {self.dossier['intentos_max']}"),
             ("EXPEDIENTES VISTOS", f"{self.dossier['crimenes_vistos']} / {self.dossier['crimenes_pool']}"),
         ]
 
@@ -253,7 +280,7 @@ class DossierFinal(QWidget):
         sep.setStyleSheet(f"background: {GRIS_BORDE}; max-height: 1px; border: none;")
         return sep
 
-    def _bloque_firma(self, etiqueta: str, valor: str) -> QWidget:
+    def _bloque_firma(self, etiqueta: str, valor: str, acertado: bool | None = None) -> QWidget:
         w = QWidget()
         w.setStyleSheet("background: transparent;")
         lay = QVBoxLayout(w)
@@ -270,10 +297,18 @@ class DossierFinal(QWidget):
             font-family: {MONO};
         """)
 
+        # Color del valor según si el jugador acertó o no
+        if acertado is True:
+            color_val = VERDE
+        elif acertado is False:
+            color_val = ROJO
+        else:
+            color_val = AMBAR
+
         lbl_v = QLabel(valor)
         lbl_v.setAlignment(Qt.AlignCenter)
         lbl_v.setStyleSheet(f"""
-            color: {AMBAR};
+            color: {color_val};
             font-size: 14px;
             font-weight: bold;
             font-family: {MONO};

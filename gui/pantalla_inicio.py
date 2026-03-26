@@ -41,7 +41,7 @@ class PantallaInicio(QWidget):
             font-size: 36px;
             font-weight: bold;
             letter-spacing: 10px;
-            line-height: 1.1;
+
             font-family: {MONO};
         """)
         caja_layout.addWidget(titulo)
@@ -75,7 +75,7 @@ class PantallaInicio(QWidget):
         desc.setStyleSheet(f"""
             color: {GRIS_TEXTO};
             font-size: 11px;
-            line-height: 1.7;
+
             font-family: {MONO};
         """)
         desc.setWordWrap(True)
@@ -115,7 +115,7 @@ class PantallaInicio(QWidget):
         nota.setStyleSheet(f"""
             color: {GRIS_BORDE};
             font-size: 9px;
-            line-height: 1.5;
+
             font-family: {MONO};
         """)
         nota.setWordWrap(True)

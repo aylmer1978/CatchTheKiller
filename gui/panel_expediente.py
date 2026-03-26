@@ -114,7 +114,7 @@ class PanelExpediente(QWidget):
         lbl_nota.setStyleSheet(f"""
             color: {GRIS_BORDE};
             font-size: 9px;
-            line-height: 1.4;
+
             border: none;
         """)
         layout.addWidget(lbl_nota)

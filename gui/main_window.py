@@ -201,10 +201,6 @@ class PantallaJuego(QWidget):
         lay.addWidget(self.lbl_intentos)
         lay.addSpacing(20)
 
-        self.lbl_victimas = QLabel()
-        lay.addWidget(self.lbl_victimas)
-        lay.addSpacing(20)
-
         btn_sala = QPushButton("⚑  SALA DE MANDO")
         btn_sala.setFixedHeight(30)
         btn_sala.setStyleSheet(f"""
@@ -223,20 +219,9 @@ class PantallaJuego(QWidget):
         return barra
 
     def _actualizar_barra(self):
-        prox    = self.partida.proximos_dias_para_nuevo()
-        hay_mas = self.partida.hay_mas_crimenes()
-        self.lbl_acciones.setText(
-            f"DÍA {self.partida.dias}"
-            + (f"  ·  PRÓXIMO CRIMEN EN: {prox}d" if hay_mas else "")
-        )
+        self.lbl_acciones.setText(f"DÍA {self.partida.dias}")
         self.lbl_intentos.setText(
             f"INTENTOS: {self.partida.intentos}/{self.partida.intentos_max}"
-        )
-        vic = self.partida.victimas
-        color_v = ROJO if vic > 3 else AMBAR
-        self.lbl_victimas.setText(f"VÍCTIMAS: {vic}")
-        self.lbl_victimas.setStyleSheet(
-            f"color: {color_v}; font-size: 10px; letter-spacing: 1px;"
         )
 
     # ── Selección de crimen ───────────────────────────────────────────── #
@@ -294,11 +279,16 @@ class PantallaJuego(QWidget):
         self._actualizar_todo()
 
     def _dialogo_dia(self, resultado: dict):
-        """Muestra el diálogo de fin de día con frase narrativa."""
+        """Muestra el diálogo de fin de día con frase narrativa y evento."""
         from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
+        from core.evento import TipoEvento
+
+        evento   = resultado.get("evento")
+        dia_ant  = resultado["dia_nuevo"] - 1
+
         dlg = QDialog(self)
-        dlg.setWindowTitle(f"DÍA {resultado['dia_nuevo'] - 1} — FIN DE JORNADA")
-        dlg.setFixedWidth(420)
+        dlg.setWindowTitle(f"DÍA {dia_ant} — FIN DE JORNADA")
+        dlg.setFixedWidth(440)
         dlg.setStyleSheet(f"""
             QDialog {{ background: {GRIS_OSCURO}; font-family: {MONO}; }}
             QLabel  {{ border: none; }}
@@ -306,10 +296,10 @@ class PantallaJuego(QWidget):
 
         lay = QVBoxLayout(dlg)
         lay.setContentsMargins(28, 24, 28, 24)
-        lay.setSpacing(14)
+        lay.setSpacing(12)
 
         # Número de día
-        lbl_dia = QLabel(f"— FIN DEL DÍA {resultado['dia_nuevo'] - 1} —")
+        lbl_dia = QLabel(f"— FIN DEL DÍA {dia_ant} —")
         lbl_dia.setAlignment(Qt.AlignCenter)
         lbl_dia.setStyleSheet(f"color: {GRIS_TEXTO}; font-size: 9px; letter-spacing: 4px;")
         lay.addWidget(lbl_dia)
@@ -322,27 +312,65 @@ class PantallaJuego(QWidget):
             color: {AMBAR};
             font-size: 12px;
             font-style: italic;
-            line-height: 1.6;
+
         """)
         lay.addWidget(lbl_frase)
 
-        # Avisos de crímenes nuevos
-        avisos = []
-        if resultado.get("nuevo_crimen"):
-            avisos.append("⚠  Se ha reportado un nuevo homicidio en la ciudad.")
-        if resultado.get("penalizacion"):
-            avisos.append("⚠  El mazo se ha agotado. Otro crimen ha aparecido.")
+        # Evento del día
+        if evento:
+            sep = QFrame()
+            sep.setStyleSheet(f"background: {GRIS_BORDE}; max-height: 1px;")
+            lay.addWidget(sep)
 
-        for aviso in avisos:
-            lbl_av = QLabel(aviso)
-            lbl_av.setWordWrap(True)
-            lbl_av.setStyleSheet(f"color: {ROJO}; font-size: 10px;")
-            lay.addWidget(lbl_av)
+            # Color según tipo de evento
+            color_ev = {
+                TipoEvento.NUEVO_CRIMEN:         ROJO,
+                TipoEvento.ERROR_POLICIAL:        ROJO,
+                TipoEvento.CRIMEN_RESUELTO:       VERDE,
+                TipoEvento.NARRATIVO:             GRIS_TEXTO,
+                TipoEvento.COMUNICACION_ASESINO:  AMBAR,
+                TipoEvento.BUROCRACIA:            ROJO,
+                TipoEvento.FINANCIACION:          VERDE,
+                TipoEvento.REFUERZOS:             VERDE,
+            }.get(evento.tipo, GRIS_TEXTO)
 
-        # Nuevo día
-        sep = QFrame()
-        sep.setStyleSheet(f"background: {GRIS_BORDE}; max-height: 1px;")
-        lay.addWidget(sep)
+            lbl_ev_tit = QLabel(f"{evento.icono}  {evento.titulo}")
+            lbl_ev_tit.setStyleSheet(f"""
+                color: {color_ev};
+                font-size: 11px;
+                font-weight: bold;
+                letter-spacing: 2px;
+            """)
+            lay.addWidget(lbl_ev_tit)
+
+            lbl_ev_txt = QLabel(evento.texto)
+            lbl_ev_txt.setWordWrap(True)
+            lbl_ev_txt.setStyleSheet(f"color: {GRIS_TEXTO}; font-size: 10px;")
+            lay.addWidget(lbl_ev_txt)
+
+            # Modificadores mecánicos
+            if evento.modifica_mano:
+                n = evento.max_mano_override
+                txt = f"Mañana recibirás {n} carta{'s' if n != 1 else ''}."
+                lbl_mod = QLabel(f"→  {txt}")
+                lbl_mod.setStyleSheet(f"color: {color_ev}; font-size: 10px; font-style: italic;")
+                lay.addWidget(lbl_mod)
+            if evento.da_refuerzos:
+                lbl_ref = QLabel(f"→  Mañana podrás jugar {evento.cartas_jugables} cartas.")
+                lbl_ref.setStyleSheet(f"color: {VERDE}; font-size: 10px; font-style: italic;")
+                lay.addWidget(lbl_ref)
+
+        # Penalización mazo
+        if resultado.get("regenero_mazo"):
+            lbl_pen = QLabel("⚠  El mazo se ha agotado. Ha aparecido un nuevo crimen.")
+            lbl_pen.setWordWrap(True)
+            lbl_pen.setStyleSheet(f"color: {ROJO}; font-size: 10px;")
+            lay.addWidget(lbl_pen)
+
+        # Separador y nuevo día
+        sep2 = QFrame()
+        sep2.setStyleSheet(f"background: {GRIS_BORDE}; max-height: 1px;")
+        lay.addWidget(sep2)
 
         lbl_nuevo = QLabel(f"DÍA {resultado['dia_nuevo']} — SE REPONEN LAS CARTAS")
         lbl_nuevo.setAlignment(Qt.AlignCenter)
@@ -364,6 +392,10 @@ class PantallaJuego(QWidget):
 
         dlg.exec()
 
+        # Si es comunicación del asesino, mostrar pantalla especial después
+        if evento and evento.tipo == TipoEvento.COMUNICACION_ASESINO and evento.carta_asesino:
+            self._mostrar_carta_asesino(evento.carta_asesino)
+
     # ── Acciones de expediente ────────────────────────────────────────── #
 
     def _on_sospechoso(self, idx: int):
@@ -379,18 +411,16 @@ class PantallaJuego(QWidget):
             self._actualizar_todo()
 
     def _on_recuperar(self, idx: int):
-        ok, nuevo = self.partida.recuperar(idx)
+        ok = self.partida.recuperar(idx)
         if ok:
             self._actualizar_todo()
-            if nuevo:
-                self._notificar_nuevo_crimen()
 
     # ── Sala de mando / acusación ─────────────────────────────────────── #
 
     def _abrir_sala_mando(self):
         if self.partida.resuelta:
             return
-        dialogo = SalaMando(self.partida, parent=self)
+        dialogo = SalaMando(self.partida, self.partida.elementos, parent=self)
         if dialogo.exec() and dialogo.resultado:
             self._procesar_resultado(dialogo.resultado)
 
@@ -399,13 +429,13 @@ class PantallaJuego(QWidget):
         if tipo in (ResultadoAcusacion.VICTORIA, ResultadoAcusacion.DERROTA_FINAL):
             self.partida_terminada.emit(self.partida.dossier())
         elif tipo == ResultadoAcusacion.FALLO_CON_INTENTO:
-            fp = len(resultado["falsos_positivos"])
-            ne = len(resultado["no_encontrados"])
+            aciertos = len(resultado["aciertos_rasgo"])
+            fallos   = len(resultado["fallos_atributo"])
             self._dialogo(
-                "ACUSACIÓN FALLIDA",
-                f"Tu acusación es incorrecta.\n\n"
-                f"Falsos positivos: {fp}\n"
-                f"Crímenes del asesino no identificados: {ne}\n\n"
+                "MODUS OPERANDI INCORRECTO",
+                f"Tu hipótesis no coincide con la firma del asesino.\n\n"
+                f"Rasgos acertados: {aciertos} / 3\n"
+                f"Rasgos fallados:  {fallos}\n\n"
                 f"Intentos restantes: {resultado['intentos_restantes']}\n"
                 f"El asesino ha cometido un nuevo crimen.",
                 color=ROJO
@@ -450,3 +480,87 @@ class PantallaJuego(QWidget):
             "Ha aparecido un nuevo expediente en el mapa.",
             color=AMBAR
         )
+
+    def _mostrar_carta_asesino(self, carta: tuple):
+        """Pantalla especial con estética de carta manuscrita."""
+        asunto, cuerpo = carta
+        _dialogo_carta_asesino(self, asunto, cuerpo)
+
+
+def _dialogo_carta_asesino(parent, asunto: str, cuerpo: str):
+    """Diálogo de carta del asesino, usable desde cualquier widget."""
+    from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
+    dlg = QDialog(parent)
+    dlg.setWindowTitle("COMUNICACIÓN ANÓNIMA — CLASIFICADO")
+    dlg.setFixedWidth(480)
+    dlg.setStyleSheet(f"""
+        QDialog {{
+            background-color: #1a1508;
+            font-family: 'Courier New', monospace;
+            border: 2px solid {AMBAR_OSCURO};
+        }}
+        QLabel {{ border: none; }}
+    """)
+
+    lay = QVBoxLayout(dlg)
+    lay.setContentsMargins(32, 28, 32, 28)
+    lay.setSpacing(16)
+
+    lbl_clasificado = QLabel("— DOCUMENTO CLASIFICADO — USO INTERNO —")
+    lbl_clasificado.setAlignment(Qt.AlignCenter)
+    lbl_clasificado.setStyleSheet(f"color: {ROJO}; font-size: 8px; letter-spacing: 4px;")
+    lay.addWidget(lbl_clasificado)
+
+    sep_top = QFrame()
+    sep_top.setStyleSheet(f"background: {AMBAR_OSCURO}; max-height: 1px;")
+    lay.addWidget(sep_top)
+
+    lbl_para = QLabel("PARA:  Departamento de Homicidios\nDE:    Remitente desconocido")
+    lbl_para.setStyleSheet(f"color: {GRIS_TEXTO}; font-size: 9px;")
+    lay.addWidget(lbl_para)
+
+    lbl_asunto = QLabel(f"ASUNTO:  {asunto}")
+    lbl_asunto.setStyleSheet(f"color: {AMBAR}; font-size: 11px; font-weight: bold; letter-spacing: 1px;")
+    lay.addWidget(lbl_asunto)
+
+    sep_mid = QFrame()
+    sep_mid.setStyleSheet(f"background: {AMBAR_OSCURO}; max-height: 1px;")
+    lay.addWidget(sep_mid)
+
+    lbl_cuerpo = QLabel(cuerpo)
+    lbl_cuerpo.setWordWrap(True)
+    lbl_cuerpo.setStyleSheet(f"""
+        color: #d4c9a0;
+        font-size: 13px;
+        font-style: italic;
+
+        padding: 8px 0;
+    """)
+    lay.addWidget(lbl_cuerpo)
+
+    sep_bot = QFrame()
+    sep_bot.setStyleSheet(f"background: {AMBAR_OSCURO}; max-height: 1px;")
+    lay.addWidget(sep_bot)
+
+    lbl_nota = QLabel(
+        "⚠  Sin huellas. Sin sello postal. Entregada en mano.\n"
+        "El laboratorio forense no ha encontrado evidencias utilizables."
+    )
+    lbl_nota.setWordWrap(True)
+    lbl_nota.setStyleSheet(f"color: {GRIS_TEXTO}; font-size: 9px;")
+    lay.addWidget(lbl_nota)
+
+    btn = QPushButton("ARCHIVAR COMUNICACIÓN")
+    btn.setFixedHeight(34)
+    btn.setStyleSheet(f"""
+        QPushButton {{
+            background: transparent; color: {AMBAR_OSCURO};
+            border: 1px solid {AMBAR_OSCURO}; border-radius: 2px;
+            font-size: 9px; letter-spacing: 3px; font-family: {MONO};
+        }}
+        QPushButton:hover {{ color: {AMBAR}; border-color: {AMBAR}; }}
+    """)
+    btn.clicked.connect(dlg.accept)
+    lay.addWidget(btn)
+
+    dlg.exec()
