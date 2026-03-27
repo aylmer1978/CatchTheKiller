@@ -229,14 +229,16 @@ class PanelExpediente(QWidget):
                 """)
 
         # Imagen compuesta con rutas fijadas al aparecer el crimen
-        lugar_revelado = "lugar" in crimen.campos_revelados
-        arma_revelada  = "arma"  in crimen.campos_revelados
+        lugar_revelado   = "lugar"   in crimen.campos_revelados
+        arma_revelada    = "arma"    in crimen.campos_revelados
+        victima_revelada = "victima" in crimen.campos_revelados
         self.img_widget.cargar(
-            ruta_lugar  = crimen.img_lugar  if lugar_revelado else None,
-            ruta_cuerpo = crimen.img_cuerpo,
-            ruta_arma   = crimen.img_arma   if arma_revelada  else None,
-            hay_lugar_generico  = lugar_revelado is False,
-            hay_arma_generica   = arma_revelada  is False,
+            ruta_lugar   = crimen.img_lugar  if lugar_revelado   else None,
+            ruta_cuerpo  = crimen.img_cuerpo if victima_revelada else None,
+            ruta_arma    = crimen.img_arma   if arma_revelada    else None,
+            hay_lugar_generico  = not lugar_revelado,
+            hay_cuerpo_generico = not victima_revelada,
+            hay_arma_generica   = not arma_revelada,
         )
 
         # Botones
@@ -264,7 +266,11 @@ class PanelExpediente(QWidget):
         self.btn_sospechoso.setEnabled(False)
         self.btn_archivar.setEnabled(False)
         self.btn_sospechoso.setText("MARCAR SOSPECHOSO")
-        self.img_widget.cargar()   # sin argumentos → todo genérico
+        self.img_widget.cargar(
+            hay_lugar_generico=True,
+            hay_cuerpo_generico=True,
+            hay_arma_generica=True,
+        )
 
     def refrescar(self):
         """Refresca sin cambiar el crimen seleccionado."""
@@ -304,23 +310,18 @@ class _ImagenCrimen(QWidget):
 
     def cargar(
         self,
-        ruta_lugar:          object = None,   # Path fija del crimen o None
+        ruta_lugar:          object = None,
         ruta_cuerpo:         object = None,
         ruta_arma:           object = None,
-        hay_lugar_generico:  bool   = False,  # True → mostrar genérica de lugar
-        hay_arma_generica:   bool   = False,  # True → mostrar genérica de arma
+        hay_lugar_generico:  bool   = False,
+        hay_cuerpo_generico: bool   = False,
+        hay_arma_generica:   bool   = False,
     ) -> None:
-        """
-        Carga las imágenes a mostrar.
-        Si ruta_X es None y hay_X_generico es True, busca _generico.png.
-        Si ruta_X tiene valor, la usa directamente.
-        """
         from core.assets import imagen_lugar_generica, imagen_arma_generica, imagen_cuerpo_generico
 
         self._vacio = False
 
         def _pixmap(ruta, generico_fn, usar_generico):
-            """Carga el pixmap desde ruta, o desde la genérica si corresponde."""
             if ruta is not None:
                 from pathlib import Path
                 r = Path(ruta) if not hasattr(ruta, 'exists') else ruta
@@ -333,7 +334,7 @@ class _ImagenCrimen(QWidget):
             return None
 
         self._px_lugar  = _pixmap(ruta_lugar,  imagen_lugar_generica,  hay_lugar_generico)
-        self._px_cuerpo = _pixmap(ruta_cuerpo, imagen_cuerpo_generico, True)
+        self._px_cuerpo = _pixmap(ruta_cuerpo, imagen_cuerpo_generico, hay_cuerpo_generico)
         self._px_arma   = _pixmap(ruta_arma,   imagen_arma_generica,   hay_arma_generica)
 
         self.update()
