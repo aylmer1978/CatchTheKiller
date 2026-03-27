@@ -45,6 +45,11 @@ class Crimen:
     archivado:          bool      = field(default=False, compare=False)
     sospechoso:         bool      = field(default=False, compare=False)
 
+    # Imágenes fijadas al aparecer el crimen (no cambian nunca)
+    img_lugar:  object = field(default=None, compare=False)   # Path | None
+    img_cuerpo: object = field(default=None, compare=False)   # Path | None
+    img_arma:   object = field(default=None, compare=False)   # Path | None
+
     # ------------------------------------------------------------------ #
     #  Acceso a datos                                                      #
     # ------------------------------------------------------------------ #

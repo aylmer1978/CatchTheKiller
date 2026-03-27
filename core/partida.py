@@ -171,8 +171,19 @@ class Partida:
         return {i: todas[i] for i in range(len(self._pool))}
 
     def _hacer_visible(self, idx: int) -> None:
+        from core.assets import (
+            imagen_lugar, imagen_lugar_generica,
+            imagen_arma,  imagen_arma_generica,
+            imagen_cuerpo, imagen_cuerpo_generico,
+        )
         crimen = self._pool[idx]
         crimen.visible_en_mapa = True
+
+        # Fijar imágenes una sola vez — no cambiarán aunque se reinvestigue
+        crimen.img_lugar  = imagen_lugar(crimen.lugar) or imagen_lugar_generica()
+        crimen.img_cuerpo = imagen_cuerpo() or imagen_cuerpo_generico()
+        crimen.img_arma   = imagen_arma(crimen.arma)  or imagen_arma_generica()
+
         # Revelar 2 atributos aleatorios al aparecer el crimen
         attrs_a_revelar = random.sample(list(ATRIBUTOS), 2)
         for a in attrs_a_revelar:

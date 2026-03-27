@@ -228,14 +228,15 @@ class PanelExpediente(QWidget):
                     border: none;
                 """)
 
-        # Imagen compuesta: lugar + cuerpo + arma
-        # Cada capa muestra la genérica si el atributo no está revelado,
-        # o la imagen específica si lo está (y existe el asset).
+        # Imagen compuesta con rutas fijadas al aparecer el crimen
         lugar_revelado = "lugar" in crimen.campos_revelados
         arma_revelada  = "arma"  in crimen.campos_revelados
         self.img_widget.cargar(
-            valor_lugar = crimen.valor("lugar") if lugar_revelado else None,
-            valor_arma  = crimen.valor("arma")  if arma_revelada  else None,
+            ruta_lugar  = crimen.img_lugar  if lugar_revelado else None,
+            ruta_cuerpo = crimen.img_cuerpo,
+            ruta_arma   = crimen.img_arma   if arma_revelada  else None,
+            hay_lugar_generico  = lugar_revelado is False,
+            hay_arma_generica   = arma_revelada  is False,
         )
 
         # Botones
@@ -263,7 +264,7 @@ class PanelExpediente(QWidget):
         self.btn_sospechoso.setEnabled(False)
         self.btn_archivar.setEnabled(False)
         self.btn_sospechoso.setText("MARCAR SOSPECHOSO")
-        self.img_widget.cargar(None, None)   # muestra las tres genéricas
+        self.img_widget.cargar()   # sin argumentos → todo genérico
 
     def refrescar(self):
         """Refresca sin cambiar el crimen seleccionado."""
@@ -284,66 +285,64 @@ class PanelExpediente(QWidget):
 
 class _ImagenCrimen(QWidget):
     """
-    Widget que muestra la imagen compuesta del crimen con tres capas:
-      1. Lugar  (fondo opaco, estirado al ancho)
-      2. Cuerpo (PNG transparente, centrado y alineado abajo)
-      3. Arma   (PNG transparente, esquina inferior derecha, 35% del ancho)
+    Widget de imagen compuesta con tres capas:
+      1. Lugar  (fondo opaco)
+      2. Cuerpo (PNG transparente, centrado abajo)
+      3. Arma   (PNG transparente, esquina inferior derecha)
 
-    Si no hay assets disponibles para una capa, se omite sin error.
-    Si el arma no está revelada aún, no se muestra la capa de arma.
+    Las rutas se fijan al aparecer el crimen y nunca cambian.
+    Cuando un atributo no está revelado se muestra la genérica (_generico.png).
     """
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._pixmap_lugar:  QPixmap | None = None
-        self._pixmap_cuerpo: QPixmap | None = None
-        self._pixmap_arma:   QPixmap | None = None
-        self._sin_imagen = True
+        self._px_lugar:  QPixmap | None = None
+        self._px_cuerpo: QPixmap | None = None
+        self._px_arma:   QPixmap | None = None
+        self._vacio = True
         self.setStyleSheet(f"background: {GRIS_OSCURO}; border: none;")
 
-    def cargar(self, valor_lugar: str | None, valor_arma: str | None = None) -> None:
+    def cargar(
+        self,
+        ruta_lugar:          object = None,   # Path fija del crimen o None
+        ruta_cuerpo:         object = None,
+        ruta_arma:           object = None,
+        hay_lugar_generico:  bool   = False,  # True → mostrar genérica de lugar
+        hay_arma_generica:   bool   = False,  # True → mostrar genérica de arma
+    ) -> None:
         """
-        Carga las imágenes y repinta.
-
-        valor_lugar = None  → usa la imagen genérica de lugar (_generico.png)
-        valor_lugar = str   → usa la imagen específica (o genérica si no existe)
-
-        valor_arma  = None  → usa la imagen genérica de arma (_generico.png)
-        valor_arma  = str   → usa la imagen específica (o genérica si no existe)
-
-        El cuerpo siempre muestra la genérica hasta que haya assets específicos.
+        Carga las imágenes a mostrar.
+        Si ruta_X es None y hay_X_generico es True, busca _generico.png.
+        Si ruta_X tiene valor, la usa directamente.
         """
-        self._sin_imagen = False
+        from core.assets import imagen_lugar_generica, imagen_arma_generica, imagen_cuerpo_generico
 
-        # ── Lugar ──────────────────────────────────────────
-        if valor_lugar is not None:
-            ruta = imagen_lugar(valor_lugar)
-            if not ruta:
-                ruta = imagen_lugar_generica()
-        else:
-            ruta = imagen_lugar_generica()
-        self._pixmap_lugar = QPixmap(str(ruta)) if ruta and ruta.exists() else None
+        self._vacio = False
 
-        # ── Cuerpo (siempre genérico hasta tener assets) ───
-        ruta_c = imagen_cuerpo() or imagen_cuerpo_generico()
-        self._pixmap_cuerpo = QPixmap(str(ruta_c)) if ruta_c and ruta_c.exists() else None
+        def _pixmap(ruta, generico_fn, usar_generico):
+            """Carga el pixmap desde ruta, o desde la genérica si corresponde."""
+            if ruta is not None:
+                from pathlib import Path
+                r = Path(ruta) if not hasattr(ruta, 'exists') else ruta
+                if r.exists():
+                    return QPixmap(str(r))
+            if usar_generico:
+                gen = generico_fn()
+                if gen and gen.exists():
+                    return QPixmap(str(gen))
+            return None
 
-        # ── Arma ───────────────────────────────────────────
-        if valor_arma is not None:
-            ruta_a = imagen_arma(valor_arma)
-            if not ruta_a:
-                ruta_a = imagen_arma_generica()
-        else:
-            ruta_a = imagen_arma_generica()
-        self._pixmap_arma = QPixmap(str(ruta_a)) if ruta_a and ruta_a.exists() else None
+        self._px_lugar  = _pixmap(ruta_lugar,  imagen_lugar_generica,  hay_lugar_generico)
+        self._px_cuerpo = _pixmap(ruta_cuerpo, imagen_cuerpo_generico, True)
+        self._px_arma   = _pixmap(ruta_arma,   imagen_arma_generica,   hay_arma_generica)
 
         self.update()
 
     def limpiar(self) -> None:
-        self._pixmap_lugar  = None
-        self._pixmap_cuerpo = None
-        self._pixmap_arma   = None
-        self._sin_imagen    = True
+        self._px_lugar  = None
+        self._px_cuerpo = None
+        self._px_arma   = None
+        self._vacio     = True
         self.update()
 
     def paintEvent(self, event):
@@ -351,11 +350,11 @@ class _ImagenCrimen(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         rect = self.rect()
 
-        hay_algo = (self._pixmap_lugar or self._pixmap_cuerpo or self._pixmap_arma)
+        hay_algo = self._px_lugar or self._px_cuerpo or self._px_arma
 
-        if self._sin_imagen or not hay_algo:
+        if self._vacio or not hay_algo:
             painter.fillRect(rect, Qt.transparent)
-            if not self._sin_imagen:
+            if not self._vacio:
                 from PySide6.QtGui import QColor, QFont
                 painter.setPen(QColor(GRIS_BORDE))
                 painter.setFont(QFont("Courier New", 8))
@@ -363,39 +362,32 @@ class _ImagenCrimen(QWidget):
             painter.end()
             return
 
-        # ── Capa 1: lugar (fondo) ─────────────────────────
-        if self._pixmap_lugar:
-            px = self._pixmap_lugar.scaled(
+        # Capa 1: lugar (fondo)
+        if self._px_lugar:
+            px = self._px_lugar.scaled(
                 rect.width(), rect.height(),
-                Qt.KeepAspectRatioByExpanding,
-                Qt.SmoothTransformation,
-            )
+                Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
             x = (rect.width()  - px.width())  // 2
             y = (rect.height() - px.height()) // 2
             painter.drawPixmap(x, y, px)
 
-        # ── Capa 2: cuerpo (centrado, alineado abajo) ─────
-        if self._pixmap_cuerpo:
+        # Capa 2: cuerpo (centrado, alineado abajo)
+        if self._px_cuerpo:
             max_w = int(rect.width() * 0.75)
-            max_h = rect.height()
-            px_c = self._pixmap_cuerpo.scaled(
-                max_w, max_h,
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation,
-            )
-            cx = (rect.width() - px_c.width()) // 2
+            px_c = self._px_cuerpo.scaled(
+                max_w, rect.height(),
+                Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            cx = (rect.width()  - px_c.width())  // 2
             cy =  rect.height() - px_c.height()
             painter.drawPixmap(cx, cy, px_c)
 
-        # ── Capa 3: arma (esquina inferior derecha) ───────
-        if self._pixmap_arma:
-            max_w = int(rect.width() * 0.35)
+        # Capa 3: arma (esquina inferior derecha)
+        if self._px_arma:
+            max_w = int(rect.width()  * 0.35)
             max_h = int(rect.height() * 0.45)
-            px_a = self._pixmap_arma.scaled(
+            px_a = self._px_arma.scaled(
                 max_w, max_h,
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation,
-            )
+                Qt.KeepAspectRatio, Qt.SmoothTransformation)
             ax = rect.width()  - px_a.width()  - 4
             ay = rect.height() - px_a.height() - 4
             painter.drawPixmap(ax, ay, px_a)
