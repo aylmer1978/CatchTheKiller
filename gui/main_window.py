@@ -30,6 +30,7 @@ from gui.estilos import (
     VERDE, MONO, separador_h
 )
 from gui.pantalla_inicio  import PantallaInicio
+from gui.pantalla_intro   import PantallaIntro
 from gui.mapa_widget      import MapaWidget
 from gui.panel_expediente import PanelExpediente
 from gui.panel_archivados import PanelArchivados
@@ -58,8 +59,14 @@ class MainWindow(QMainWindow):
 
     def _iniciar_partida(self, dificultad: Dificultad):
         asesino = Asesino(self.elementos)
-        partida = Partida(asesino, self.elementos, dificultad)
-        pantalla = PantallaJuego(partida)
+        self._partida_pendiente = Partida(asesino, self.elementos, dificultad)
+        intro = PantallaIntro(self._partida_pendiente)
+        intro.partida_lista.connect(self._mostrar_juego)
+        self._stack.addWidget(intro)
+        self._stack.setCurrentWidget(intro)
+
+    def _mostrar_juego(self):
+        pantalla = PantallaJuego(self._partida_pendiente)
         pantalla.partida_terminada.connect(self._mostrar_dossier)
         self._stack.addWidget(pantalla)
         self._stack.setCurrentWidget(pantalla)

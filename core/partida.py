@@ -31,7 +31,26 @@ INTENTOS_POR_DIFICULTAD = {
     Dificultad.DIFICIL: 1,
 }
 
-CRIMENES_INICIALES  = 5
+# Víctimas del asesino garantizadas entre los crímenes iniciales por dificultad
+# (min, max) — el valor real se elige al azar dentro del rango
+VICTIMAS_INICIALES = {
+    Dificultad.FACIL:   (2, 2),   # siempre 2
+    Dificultad.NORMAL:  (1, 2),   # 1 o 2, solo se comunica 1
+    Dificultad.DIFICIL: (0, 2),   # 0, 1 o 2, no se comunica nada seguro
+}
+
+# Lo que se comunica al jugador en la intro (mínimo garantizado)
+VICTIMAS_COMUNICADAS = {
+    Dificultad.FACIL:   2,
+    Dificultad.NORMAL:  1,
+    Dificultad.DIFICIL: 0,
+}
+
+CRIMENES_INICIALES = {
+    Dificultad.FACIL:   4,
+    Dificultad.NORMAL:  5,
+    Dificultad.DIFICIL: 6,
+}
 MIN_ATTRS_INICIALES = 3
 MAX_ATTRS_INICIALES = 5
 RANGO_ASESINO = (4, 7)
@@ -97,11 +116,32 @@ class Partida:
         crimenes_senuelo = generar_crimenes_senuelo(
             asesino, elementos, n_senuelo, crimenes_asesino
         )
-        self._pool: list[Crimen] = crimenes_asesino + crimenes_senuelo
-        random.shuffle(self._pool)
+
+        # Número de crímenes iniciales según dificultad
+        n_iniciales = CRIMENES_INICIALES[dificultad]
+
+        # Determinar cuántos crímenes del asesino aparecen entre los iniciales
+        min_vic, max_vic = VICTIMAS_INICIALES[dificultad]
+        max_vic = min(max_vic, len(crimenes_asesino))
+        self.victimas_iniciales_reales: int = random.randint(min_vic, max_vic)
+        self.victimas_comunicadas: int = VICTIMAS_COMUNICADAS[dificultad]
+
+        # Construir los primeros n_iniciales con el número correcto del asesino
+        random.shuffle(crimenes_asesino)
+        random.shuffle(crimenes_senuelo)
+
+        n_vic = self.victimas_iniciales_reales
+        n_sen = n_iniciales - n_vic
+        primeros = crimenes_asesino[:n_vic] + crimenes_senuelo[:n_sen]
+        random.shuffle(primeros)
+
+        resto = crimenes_asesino[n_vic:] + crimenes_senuelo[n_sen:]
+        random.shuffle(resto)
+
+        self._pool: list[Crimen] = primeros + resto
 
         self._posiciones: dict[int, tuple[int, int]] = self._asignar_posiciones()
-        self._siguiente_idx: int = CRIMENES_INICIALES
+        self._siguiente_idx: int = n_iniciales
 
         self.dias:           int = 1
         self.dias_sin_crimen: int = 0
@@ -118,8 +158,8 @@ class Partida:
         # Mazo de cartas
         self.mazo = Mazo()
 
-        # Hacer visibles los primeros N crímenes
-        for i in range(min(CRIMENES_INICIALES, len(self._pool))):
+        # Hacer visibles los primeros n_iniciales crímenes
+        for i in range(min(n_iniciales, len(self._pool))):
             self._hacer_visible(i)
 
     # ── Setup ─────────────────────────────────────────────────────────── #
@@ -490,21 +530,23 @@ class Partida:
 
     def dossier(self) -> dict:
         return {
-            "nombre_prensa":       self.asesino.nombre_prensa(),
-            "firma":               self.asesino.resumen_firma(),
-            "atributos_firma":     self.asesino.atributos_firma,
-            "modus_declarado":     getattr(self, '_ultimo_modus', None),
-            "dificultad":          self.dificultad.value,
-            "victoria":            self.victoria,
-            "total_victimas":      self.victimas,
-            "historial_victimas":  self.historial_victimas,
-            "intentos_usados":     self.intentos_max - self.intentos,
-            "intentos_max":        self.intentos_max,
-            "dias_totales":        self.dias,
-            "cartas_jugadas":      self.mazo.cartas_en_descarte(),
-            "regeneraciones_mazo": self.mazo.regeneraciones,
-            "crimenes_vistos":     len([c for c in self._pool if c.visible_en_mapa]),
-            "crimenes_pool":       len(self._pool),
+            "nombre_prensa":          self.asesino.nombre_prensa(),
+            "firma":                  self.asesino.resumen_firma(),
+            "atributos_firma":        self.asesino.atributos_firma,
+            "modus_declarado":        getattr(self, '_ultimo_modus', None),
+            "dificultad":             self.dificultad.value,
+            "victoria":               self.victoria,
+            "total_victimas":         self.victimas,
+            "victimas_iniciales":     self.victimas_iniciales_reales,
+            "victimas_comunicadas":   self.victimas_comunicadas,
+            "historial_victimas":     self.historial_victimas,
+            "intentos_usados":        self.intentos_max - self.intentos,
+            "intentos_max":           self.intentos_max,
+            "dias_totales":           self.dias,
+            "cartas_jugadas":         self.mazo.cartas_en_descarte(),
+            "regeneraciones_mazo":    self.mazo.regeneraciones,
+            "crimenes_vistos":        len([c for c in self._pool if c.visible_en_mapa]),
+            "crimenes_pool":          len(self._pool),
         }
 
     # ── Debug ─────────────────────────────────────────────────────────── #
